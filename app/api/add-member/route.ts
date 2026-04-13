@@ -4,10 +4,10 @@ import { NextResponse } from 'next/server'
 // This route uses the service role key to look up users by email
 // Add SUPABASE_SERVICE_ROLE_KEY to your environment variables
 export async function POST(request: Request) {
-  const { roomId, email } = await request.json()
+  const { roomId, username } = await request.json()
 
-  if (!roomId || !email) {
-    return NextResponse.json({ error: 'Missing roomId or email' }, { status: 400 })
+  if (!roomId || !username) {
+    return NextResponse.json({ error: 'Missing roomId or username' }, { status: 400 })
   }
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -20,13 +20,14 @@ export async function POST(request: Request) {
     serviceKey
   )
 
-  // Look up user by email
+  // Look up user by synthetic email
+  const syntheticEmail = `${username.toLowerCase().trim().replace(/\s+/g, '')}@spendly.com`
   const { data: { users }, error } = await adminClient.auth.admin.listUsers()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const user = users.find(u => u.email === email.toLowerCase().trim())
+  const user = users.find(u => u.email === syntheticEmail)
   if (!user) {
-    return NextResponse.json({ error: 'Không tìm thấy tài khoản với email này' }, { status: 404 })
+    return NextResponse.json({ error: 'Không tìm thấy tài khoản với username này' }, { status: 404 })
   }
 
   // Check already a member

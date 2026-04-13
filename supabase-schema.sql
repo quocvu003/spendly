@@ -33,6 +33,18 @@ create table room_members (
 );
 
 -- =============================================
+-- SETTLEMENTS
+-- =============================================
+create table settlements (
+  id uuid primary key default gen_random_uuid(),
+  room_id uuid references rooms(id) on delete cascade,
+  start_date date not null,
+  end_date date not null,
+  total_amount numeric(12,2) not null,
+  created_at timestamptz default now()
+);
+
+-- =============================================
 -- TRANSACTIONS
 -- type: 'shared' = chia đều, 'personal' = chọn ai liên quan
 -- paid_by: user_id người trả trước
@@ -43,8 +55,9 @@ create table transactions (
   paid_by uuid references auth.users(id) on delete cascade,
   type text not null check (type in ('shared', 'personal')),
   amount numeric(12,2) not null check (amount > 0),
-description text not null,
+  description text not null,
   date date not null default current_date,
+  settlement_id uuid references settlements(id) on delete set null,
   created_at timestamptz default now()
 );
 
@@ -80,6 +93,7 @@ $$;
 -- =============================================
 alter table rooms enable row level security;
 alter table room_members enable row level security;
+alter table settlements enable row level security;
 alter table transactions enable row level security;
 alter table transaction_splits enable row level security;
 
@@ -109,6 +123,16 @@ create policy "room_members: owner can insert" on room_members
 create policy "room_members: owner can delete" on room_members
   for delete using (
     exists (select 1 from rooms where id = room_id and owner_id = auth.uid())
+  );
+
+-- settlements
+create policy "settlements: room members can view" on settlements
+  for select using (
+    public.is_room_member(room_id)
+  );
+create policy "settlements: room members can insert" on settlements
+  for insert with check (
+    public.is_room_member(room_id)
   );
 
 -- transactions

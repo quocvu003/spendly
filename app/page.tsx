@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -17,13 +17,19 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true); setError(''); setMessage('')
 
+    const syntheticEmail = `${username.toLowerCase().trim().replace(/\s+/g, '')}@spendly.com`
+
     if (isSignUp) {
-      const { error } = await supabase.auth.signUp({ email, password })
-      if (error) setError(error.message)
-      else setMessage('Kiểm tra email để xác nhận tài khoản!')
+      const { error } = await supabase.auth.signUp({ email: syntheticEmail, password })
+      if (error) {
+        // Thay thế chữ 'Email' trong thông báo lỗi của Supabase thành 'Username'
+        let errorMsg = error.message.replace(/Email/gi, 'Username').replace(/email/gi, 'username')
+        setError(errorMsg)
+      }
+      else setMessage('Tạo tài khoản thành công! Vui lòng đăng nhập.')
     } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) setError('Email hoặc mật khẩu không đúng')
+      const { error } = await supabase.auth.signInWithPassword({ email: syntheticEmail, password })
+      if (error) setError('Username hoặc mật khẩu không đúng')
       else router.push('/rooms')
     }
     setLoading(false)
@@ -46,10 +52,10 @@ export default function LoginPage() {
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
+              <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+              <input type="text" value={username} onChange={e => setUsername(e.target.value)} required
                 className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="you@example.com" />
+                placeholder="tennguoidung" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
@@ -64,7 +70,7 @@ export default function LoginPage() {
               {loading ? 'Đang xử lý...' : isSignUp ? 'Tạo tài khoản' : 'Đăng nhập'}
             </button>
           </form>
-          <button onClick={() => { setIsSignUp(!isSignUp); setError(''); setMessage('') }}
+          <button type="button" onClick={() => { setIsSignUp(!isSignUp); setError(''); setMessage('') }}
             className="w-full mt-4 text-sm text-gray-500 hover:text-indigo-600 transition-colors">
             {isSignUp ? 'Đã có tài khoản? Đăng nhập' : 'Chưa có tài khoản? Đăng ký'}
           </button>

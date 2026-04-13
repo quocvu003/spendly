@@ -17,6 +17,7 @@ export default function NewTransactionPage() {
   const [members, setMembers] = useState<RoomMember[]>([])
   const [selectedMembers, setSelectedMembers] = useState<string[]>([])
   const [currentUserId, setCurrentUserId] = useState('')
+  const [userNames, setUserNames] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -31,6 +32,16 @@ export default function NewTransactionPage() {
       setMembers(memberList)
       // default: all members selected
       setSelectedMembers(memberList.map(m => m.user_id))
+      
+      try {
+        const res = await fetch(`/api/room-users?roomId=${roomId}`)
+        if (res.ok) {
+          const { userMap } = await res.json()
+          setUserNames(userMap || {})
+        }
+      } catch (e) {
+        console.error(e)
+      }
     }
     load()
   }, [roomId, router])
@@ -145,7 +156,7 @@ export default function NewTransactionPage() {
                   <input type="checkbox" checked={selectedMembers.includes(m.user_id)}
                     onChange={() => toggleMember(m.user_id)} className="rounded" />
                   <span className="text-sm font-medium text-gray-900">
-                    {m.user_id === currentUserId ? 'Bạn' : m.user_id.slice(0, 12) + '...'}
+                    {m.user_id === currentUserId ? 'Bạn' : (userNames[m.user_id] ?? m.user_id.slice(0, 12) + '...')}
                   </span>
                   {selectedMembers.length > 0 && (
                     <span className="ml-auto text-xs text-gray-400">

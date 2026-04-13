@@ -21,6 +21,15 @@ export type RoomMember = {
   email?: string
 }
 
+export type Settlement = {
+  id: string
+  room_id: string
+  start_date: string
+  end_date: string
+  total_amount: number
+  created_at: string
+}
+
 export type Transaction = {
   id: string
   room_id: string
@@ -29,6 +38,7 @@ export type Transaction = {
   amount: number
   description: string
   date: string
+  settlement_id: string | null
   created_at: string
   // joined
   paid_by_email?: string
