@@ -144,8 +144,8 @@ create policy "transactions: room members can insert" on transactions
   for insert with check (
     public.is_room_member(room_id)
   );
-create policy "transactions: paid_by can update" on transactions
-  for update using (paid_by = auth.uid());
+create policy "transactions: room members can update" on transactions
+  for update using (public.is_room_member(room_id));
 create policy "transactions: paid_by can delete" on transactions
   for delete using (paid_by = auth.uid());
 

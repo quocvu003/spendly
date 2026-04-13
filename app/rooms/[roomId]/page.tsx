@@ -249,14 +249,16 @@ export default function RoomPage() {
         {/* TRANSACTIONS TAB */}
         {tab === 'transactions' && (
           <>
-            {transactions.length === 0 ? (
+            {transactions.filter(tx => !tx.settlement_id && !(tx as any).is_settled).length === 0 ? (
               <div className="text-center py-16 text-gray-400">
-                <p className="text-sm">Chưa có giao dịch nào</p>
+                <p className="text-sm">Chưa có giao dịch nào chưa chốt</p>
               </div>
             ) : (
               <div className="space-y-2">
-                {transactions.map(tx => (
-                  <div key={tx.id} className={`bg-white rounded-2xl border border-gray-100 p-4 ${(tx.settlement_id || (tx as any).is_settled) ? 'opacity-60 grayscale-[50%]' : ''}`}>
+                {transactions
+                  .filter(tx => !tx.settlement_id && !(tx as any).is_settled)
+                  .map(tx => (
+                  <div key={tx.id} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
@@ -268,18 +270,15 @@ export default function RoomPage() {
                             {tx.type === 'shared' ? 'Chung' : 'Cá nhân'}
                           </span>
                           <span className="text-xs text-gray-400">{format(new Date(tx.date), 'dd/MM/yyyy')}</span>
-                          {(tx.settlement_id || (tx as any).is_settled) && (
-                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Đã chốt</span>
-                          )}
                         </div>
-                        <p className={`font-medium text-sm ${(tx.settlement_id || (tx as any).is_settled) ? 'text-gray-500 line-through' : 'text-gray-900'}`}>{tx.description}</p>
+                        <p className="font-medium text-sm text-gray-900">{tx.description}</p>
                         <p className="text-xs text-gray-400 mt-0.5">
                           Người trả: {tx.paid_by === currentUserId ? 'Bạn' : (userNames[tx.paid_by] ?? tx.paid_by.slice(0, 8) + '...')}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 ml-3">
-                        <span className={`font-bold text-sm ${(tx.settlement_id || (tx as any).is_settled) ? 'text-gray-400' : 'text-gray-900'}`}>{formatMoney(tx.amount)}</span>
-                        {tx.paid_by === currentUserId && !(tx.settlement_id || (tx as any).is_settled) && (
+                        <span className="font-bold text-sm text-gray-900">{formatMoney(tx.amount)}</span>
+                        {tx.paid_by === currentUserId && (
                           <button onClick={() => confirmDelete(tx.id)} className="text-gray-300 hover:text-red-400">
                             <Trash2 size={16} />
                           </button>
