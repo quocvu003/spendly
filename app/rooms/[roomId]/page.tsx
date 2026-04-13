@@ -223,23 +223,29 @@ export default function RoomPage() {
       {/* Header */}
       <div className="bg-indigo-600 px-4 pt-12 pb-4">
         <div className="flex items-center gap-3 mb-4">
-          <Link href="/rooms" className="text-indigo-200 hover:text-white">
+          <Link href="/rooms?mode=list" className="text-indigo-200 hover:text-white">
             <ArrowLeft size={22} />
           </Link>
-          <h1 className="text-white font-bold text-lg flex-1">{room?.name}</h1>
-          <Link href={`/rooms/${roomId}/report`}
-            className="flex items-center gap-1 bg-white/20 text-white px-3 py-1.5 rounded-full text-xs font-medium">
-            <BarChart2 size={14} />
-            Report
-          </Link>
+          <h1 className="text-white font-bold text-lg flex-1 truncate">{room?.name}</h1>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setTab('members')}
+              className={`p-2 rounded-full transition-colors ${tab === 'members' ? 'bg-white text-indigo-600' : 'bg-white/20 text-white'}`}>
+              <Users size={18} />
+            </button>
+            <Link href={`/rooms/${roomId}/report`}
+              className="flex items-center gap-1 bg-white/20 text-white px-3 py-1.5 rounded-full text-xs font-medium">
+              <BarChart2 size={14} />
+              Report
+            </Link>
+          </div>
         </div>
 
         {/* Tabs */}
         <div className="flex bg-white/20 rounded-xl p-1">
-          {(['transactions', 'members', 'settle'] as const).map(t => (
+          {(['transactions', 'settle'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === t ? 'bg-white text-indigo-600' : 'text-white'}`}>
-              {t === 'transactions' ? '💸 Hoạt động' : t === 'members' ? '👥 Nhóm' : '🤝 Thanh toán'}
+              {t === 'transactions' ? '💸 Hoạt động' : '🤝 Thanh toán'}
             </button>
           ))}
         </div>

@@ -1,13 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase, type Room } from '@/lib/supabase'
 import { Plus, LogOut, Home } from 'lucide-react'
 
 export default function RoomsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const mode = searchParams.get('mode')
   const [rooms, setRooms] = useState<Room[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
@@ -35,7 +37,15 @@ export default function RoomsPage() {
           .order('created_at', { ascending: false })
         : { data: [] }
 
-      setRooms((data as Room[]) ?? [])
+      const roomsData = (data as Room[]) ?? []
+      
+      // If there's only one room and we are not in 'list' mode, redirect to it automatically
+      if (roomsData.length === 1 && mode !== 'list') {
+        router.replace(`/rooms/${roomsData[0].id}`)
+        return
+      }
+
+      setRooms(roomsData)
       setLoading(false)
     }
     load()
