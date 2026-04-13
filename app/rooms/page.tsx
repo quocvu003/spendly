@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase, type Room } from '@/lib/supabase'
 import { Plus, LogOut, Home } from 'lucide-react'
 
-export default function RoomsPage() {
+function RoomsList() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const mode = searchParams.get('mode')
@@ -49,7 +49,7 @@ export default function RoomsPage() {
       setLoading(false)
     }
     load()
-  }, [router])
+  }, [router, mode])
 
   async function createRoom() {
     if (!roomName.trim()) return
@@ -151,5 +151,13 @@ export default function RoomsPage() {
         )}
       </div>
     </main>
+  )
+}
+
+export default function RoomsPage() {
+  return (
+    <Suspense fallback={<div className="max-w-md mx-auto pt-20 text-center text-gray-400">Đang tải Spendly...</div>}>
+      <RoomsList />
+    </Suspense>
   )
 }
