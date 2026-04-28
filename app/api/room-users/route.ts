@@ -1,6 +1,18 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
+// Singleton admin client — reused across requests to avoid cold-start on every call
+let _adminClient: ReturnType<typeof createClient> | null = null
+function getAdminClient() {
+  if (!_adminClient) {
+    _adminClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return _adminClient
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const roomId = searchParams.get('roomId')
@@ -9,39 +21,42 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Missing roomId' }, { status: 400 })
   }
 
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!serviceKey) return NextResponse.json({ error: 'Config error' }, { status: 500 })
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json({ error: 'Config error' }, { status: 500 })
+  }
 
-  const adminClient = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceKey
-  )
+  const adminClient = getAdminClient()
 
-  // Fetch unique user_ids from room_members and transactions in this room
-  // Since we don't have direct access via public schema, admin client bypasses RLS
-  
-  const { data: members } = await adminClient.from('room_members').select('user_id').eq('room_id', roomId)
-  const { data: txs } = await adminClient.from('transactions').select('paid_by').eq('room_id', roomId)
-  
+  // Chạy song song: lấy members + transactions cùng lúc
+  const [{ data: members }, { data: txs }] = await Promise.all([
+    adminClient.from('room_members').select('user_id').eq('room_id', roomId),
+    adminClient.from('transactions').select('paid_by').eq('room_id', roomId),
+  ])
+
   const ids = new Set<string>()
   members?.forEach(m => ids.add(m.user_id))
   txs?.forEach(t => ids.add(t.paid_by))
 
-  const userMap: Record<string, string> = {}
+  if (ids.size === 0) {
+    return NextResponse.json({ userMap: {} })
+  }
 
-  // Fetch their profiles
-  // Note: auth.admin.getUserById exists
-  await Promise.all(
-    Array.from(ids).map(async (uid) => {
-      const { data } = await adminClient.auth.admin.getUserById(uid)
-      if (data?.user?.email) {
-        // email is username@spendly.com
-        userMap[uid] = data.user.email.split('@')[0]
-      } else {
-        userMap[uid] = 'User ' + uid.slice(0, 4)
-      }
-    })
-  )
+  // Query thẳng bảng profiles — nhanh hơn auth.admin.listUsers rất nhiều
+  const { data: profilesList } = await adminClient
+    .from('profiles')
+    .select('id, username')
+    .in('id', Array.from(ids))
+
+  const userMap: Record<string, string> = {}
+  profilesList?.forEach(p => {
+    if (p.username) userMap[p.id] = p.username
+  })
+
+  // Fallback cho user chưa có profile (đăng ký trước khi có tính năng này)
+  Array.from(ids).forEach(uid => {
+    if (!userMap[uid]) userMap[uid] = 'User ' + uid.slice(0, 6)
+  })
 
   return NextResponse.json({ userMap })
 }
+

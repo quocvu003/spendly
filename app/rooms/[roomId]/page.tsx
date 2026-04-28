@@ -42,36 +42,29 @@ export default function RoomPage() {
     if (!user) { router.push('/'); return }
     setCurrentUserId(user.id)
 
-    const [{ data: roomData }, { data: txData }, { data: memberData }] = await Promise.all([
+    const [
+      { data: roomData },
+      { data: txData },
+      { data: memberData },
+      userNamesRes,
+    ] = await Promise.all([
       supabase.from('rooms').select('*').eq('id', roomId).single(),
       supabase.from('transactions').select('*, splits:transaction_splits(*)').eq('room_id', roomId).order('date', { ascending: false }),
       supabase.from('room_members').select('*').eq('room_id', roomId),
+      fetch(`/api/room-users?roomId=${roomId}`).then(r => r.ok ? r.json() : { userMap: {} }).catch(() => ({ userMap: {} })),
     ])
 
     if (!roomData) { router.push('/rooms'); return }
 
-    // Fetch emails for members via RPC (or just show user_id shortened)
-    // We'll use a helper to get display names
     setRoom(roomData)
     const txList = (txData as Transaction[]) ?? []
     setTransactions(txList)
     const memberList = (memberData as RoomMember[]) ?? []
     setMembers(memberList)
 
-    // Fetch user names
-    let localUserNames: Record<string, string> = {}
-    try {
-      const res = await fetch(`/api/room-users?roomId=${roomId}`)
-      if (res.ok) {
-        const { userMap } = await res.json()
-        if (userMap) {
-          localUserNames = userMap
-          setUserNames(userMap)
-        }
-      }
-    } catch (e) {
-      console.error('Failed to load user names', e)
-    }
+    const localUserNames: Record<string, string> = userNamesRes?.userMap ?? {}
+    setUserNames(localUserNames)
+
 
     // Calculate Settlement for pending transactions
     const pendingTx = txList.filter(t => !t.settlement_id && !(t as any).is_settled)
