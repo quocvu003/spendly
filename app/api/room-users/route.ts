@@ -27,39 +27,47 @@ export async function GET(request: Request) {
 
   const adminClient = getAdminClient()
 
-  // Chạy song song: lấy members + transactions cùng lúc
+  // 1 query duy nhất thay vì 3 round-trips riêng biệt:
+  // UNION lấy tất cả user_id từ room_members + paid_by từ transactions,
+  // sau đó JOIN thẳng với profiles — chỉ tốn 1 network round-trip đến Supabase.
+  const { data, error } = await adminClient.rpc('get_room_user_map', {
+    p_room_id: roomId,
+  }) as { data: { id: string; username: string | null }[] | null; error: unknown }
+
+  if (error) {
+    // Fallback: nếu function chưa được tạo, dùng lại 3-query flow cũ
+    return fallback(adminClient, roomId)
+  }
+
+  const userMap: Record<string, string> = {}
+  data?.forEach(p => {
+    userMap[p.id] = p.username ?? 'User ' + p.id.slice(0, 6)
+  })
+
+  return NextResponse.json({ userMap })
+}
+
+// ─── Fallback (dùng khi RPC chưa deploy) ───────────────────────────────────
+async function fallback(adminClient: ReturnType<typeof createClient>, roomId: string) {
   const [membersRes, txsRes] = await Promise.all([
     adminClient.from('room_members').select('user_id').eq('room_id', roomId),
     adminClient.from('transactions').select('paid_by').eq('room_id', roomId),
   ])
 
-  const members = membersRes.data as { user_id: string }[] | null
-  const txs = txsRes.data as { paid_by: string }[] | null
-
   const ids = new Set<string>()
-  members?.forEach(m => ids.add(m.user_id))
-  txs?.forEach(t => ids.add(t.paid_by))
+  ;(membersRes.data as { user_id: string }[] | null)?.forEach(m => ids.add(m.user_id))
+  ;(txsRes.data as { paid_by: string }[] | null)?.forEach(t => ids.add(t.paid_by))
 
-  if (ids.size === 0) {
-    return NextResponse.json({ userMap: {} })
-  }
+  if (ids.size === 0) return NextResponse.json({ userMap: {} })
 
-  // Query thẳng bảng profiles — nhanh hơn auth.admin.listUsers rất nhiều
   const profilesRes = await adminClient
     .from('profiles')
     .select('id, username')
     .in('id', Array.from(ids))
 
-  const profilesList = profilesRes.data as { id: string; username: string | null }[] | null
-
   const userMap: Record<string, string> = {}
-  profilesList?.forEach(p => {
-    if (p.username) userMap[p.id] = p.username
-  })
-
-  // Fallback cho user chưa có profile (đăng ký trước khi có tính năng này)
-  Array.from(ids).forEach(uid => {
-    if (!userMap[uid]) userMap[uid] = 'User ' + uid.slice(0, 6)
+  ;(profilesRes.data as { id: string; username: string | null }[] | null)?.forEach(p => {
+    userMap[p.id] = p.username ?? 'User ' + p.id.slice(0, 6)
   })
 
   return NextResponse.json({ userMap })
