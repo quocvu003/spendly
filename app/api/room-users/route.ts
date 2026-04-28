@@ -30,7 +30,8 @@ export async function GET(request: Request) {
   // 1 query duy nhất thay vì 3 round-trips riêng biệt:
   // UNION lấy tất cả user_id từ room_members + paid_by từ transactions,
   // sau đó JOIN thẳng với profiles — chỉ tốn 1 network round-trip đến Supabase.
-  const { data, error } = await adminClient.rpc('get_room_user_map', {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (adminClient as any).rpc('get_room_user_map', {
     p_room_id: roomId,
   }) as { data: { id: string; username: string | null }[] | null; error: unknown }
 
