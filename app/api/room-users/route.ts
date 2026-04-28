@@ -28,10 +28,13 @@ export async function GET(request: Request) {
   const adminClient = getAdminClient()
 
   // Chạy song song: lấy members + transactions cùng lúc
-  const [{ data: members }, { data: txs }] = await Promise.all([
+  const [membersRes, txsRes] = await Promise.all([
     adminClient.from('room_members').select('user_id').eq('room_id', roomId),
     adminClient.from('transactions').select('paid_by').eq('room_id', roomId),
   ])
+
+  const members = membersRes.data as { user_id: string }[] | null
+  const txs = txsRes.data as { paid_by: string }[] | null
 
   const ids = new Set<string>()
   members?.forEach(m => ids.add(m.user_id))
@@ -42,10 +45,12 @@ export async function GET(request: Request) {
   }
 
   // Query thẳng bảng profiles — nhanh hơn auth.admin.listUsers rất nhiều
-  const { data: profilesList } = await adminClient
+  const profilesRes = await adminClient
     .from('profiles')
     .select('id, username')
     .in('id', Array.from(ids))
+
+  const profilesList = profilesRes.data as { id: string; username: string | null }[] | null
 
   const userMap: Record<string, string> = {}
   profilesList?.forEach(p => {

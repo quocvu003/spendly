@@ -26,7 +26,7 @@ export default function LoginPage() {
       .select('room_id, rooms!inner(id)')
       .eq('user_id', userId)
 
-    const list = (memberships ?? []) as Array<{ room_id: string; rooms: { id: string } }>
+    const list = (memberships ?? []) as unknown as Array<{ room_id: string; rooms: { id: string } }>
     if (list.length === 1) {
       router.replace(`/rooms/${list[0].rooms.id}`)
     } else {
