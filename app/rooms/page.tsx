@@ -4,8 +4,9 @@ import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase, type Room } from '@/lib/supabase'
-import { Plus, LogOut, Home } from 'lucide-react'
+import { Plus, LogOut, Home, BookOpen, ChevronRight } from 'lucide-react'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import { getContrastColors } from '@/lib/theme'
 
 function RoomsList() {
   const router = useRouter()
@@ -16,6 +17,13 @@ function RoomsList() {
   const [showCreate, setShowCreate] = useState(false)
   const [roomName, setRoomName] = useState('')
   const [creating, setCreating] = useState(false)
+  const [personalTheme, setPersonalTheme] = useState('#059669')
+  const [roomThemes, setRoomThemes] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    const saved = localStorage.getItem('spendly_personal_theme')
+    if (saved) setPersonalTheme(saved)
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -47,6 +55,14 @@ function RoomsList() {
       }
 
       setRooms(roomsData)
+
+      const themes: Record<string, string> = {}
+      roomsData.forEach(r => {
+        const saved = localStorage.getItem(`spendly_room_theme_${r.id}`)
+        if (saved) themes[r.id] = saved
+      })
+      setRoomThemes(themes)
+
       setLoading(false)
     }
     load()
@@ -78,7 +94,7 @@ function RoomsList() {
   return (
     <main className="max-w-md mx-auto min-h-screen bg-gray-50 pb-10">
       {/* Header */}
-      <div className="bg-indigo-600 px-4 pt-12 pb-6">
+      <div className="bg-indigo-600 px-4 pt-6 pb-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-white text-xl font-bold">Spendly</h1>
@@ -122,6 +138,25 @@ function RoomsList() {
           </button>
         )}
 
+        {/* Personal expense entry */}
+        {(() => {
+          const cc = getContrastColors(personalTheme)
+          return (
+            <Link href="/personal"
+              className="flex items-center gap-3 rounded-2xl p-4 mb-4 transition-colors shadow-sm"
+              style={{ backgroundColor: personalTheme }}>
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: cc.iconBg, color: cc.text }}>
+                <BookOpen size={18} />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-sm" style={{ color: cc.text }}>Sổ cá nhân</p>
+                <p className="text-xs" style={{ color: cc.muted }}>Ghi chép chi tiêu của bạn</p>
+              </div>
+              <ChevronRight size={18} style={{ color: cc.muted }} />
+            </Link>
+          )
+        })()}
+
         {/* Room list */}
         {loading ? (
           <LoadingSpinner message="Đang tải phòng..." />
@@ -132,12 +167,17 @@ function RoomsList() {
           </div>
         ) : (
           <div className="space-y-3">
-            {rooms.map(room => (
+            {rooms.map(room => {
+              const theme = roomThemes[room.id] || '#4f46e5'
+              const cc = getContrastColors(theme)
+              return (
               <Link key={room.id} href={`/rooms/${room.id}`}
-                className="block bg-white rounded-2xl border border-gray-100 p-4 hover:border-indigo-200 transition-colors">
+                className="block bg-white rounded-2xl border border-gray-100 p-4 transition-colors"
+                style={{ borderLeftColor: theme, borderLeftWidth: 4 }}>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
-                    <Home size={20} className="text-indigo-600" />
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style={{ backgroundColor: theme, color: cc.text }}>
+                    <Home size={20} />
                   </div>
                   <div>
                     <p className="font-semibold text-gray-900">{room.name}</p>
@@ -145,7 +185,7 @@ function RoomsList() {
                   </div>
                 </div>
               </Link>
-            ))}
+            )})}
           </div>
         )}
       </div>

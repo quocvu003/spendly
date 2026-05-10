@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { supabase, type RoomMember } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { ArrowLeft } from 'lucide-react'
+import { getContrastColors } from '@/lib/theme'
 
 export default function NewTransactionPage() {
   const router = useRouter()
@@ -20,6 +21,12 @@ export default function NewTransactionPage() {
   const [userNames, setUserNames] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [themeColor, setThemeColor] = useState('#4f46e5')
+
+  useEffect(() => {
+    const saved = localStorage.getItem(`spendly_room_theme_${roomId}`)
+    if (saved) setThemeColor(saved)
+  }, [roomId])
 
   useEffect(() => {
     async function load() {
@@ -92,18 +99,20 @@ export default function NewTransactionPage() {
     router.push(`/rooms/${roomId}`)
   }
 
+  const cc = getContrastColors(themeColor)
+
   return (
     <main className="max-w-md mx-auto min-h-screen bg-gray-50">
-      <div className={`px-4 pt-12 pb-6 transition-colors ${type === 'shared' ? 'bg-blue-600' : 'bg-orange-500'}`}>
+      <div className="px-4 pt-12 pb-6 transition-colors" style={{ backgroundColor: themeColor }}>
         <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => router.back()} className="text-white/80 hover:text-white">
+          <button onClick={() => router.back()} style={{ color: cc.muted }}>
             <ArrowLeft size={22} />
           </button>
-          <h1 className="text-white font-semibold text-lg">Thêm giao dịch</h1>
+          <h1 className="font-semibold text-lg" style={{ color: cc.text }}>Thêm giao dịch</h1>
         </div>
 
         {/* Type toggle */}
-        <div className="flex bg-white/20 rounded-xl p-1">
+        <div className="flex rounded-xl p-1" style={{ backgroundColor: cc.iconBg }}>
           {(['shared', 'personal'] as const).map(t => (
             <button key={t} onClick={() => {
               setType(t)
@@ -115,7 +124,8 @@ export default function NewTransactionPage() {
                 setSelectedMembers(members.map(m => m.user_id))
               }
             }}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${type === t ? 'bg-white text-gray-900' : 'text-white'}`}>
+              className="flex-1 py-2 rounded-lg text-sm font-medium transition-colors"
+              style={type === t ? { backgroundColor: '#fff', color: themeColor } : { color: cc.text }}>
               {t === 'shared' ? '🏠 Chung' : '👤 Cá nhân'}
             </button>
           ))}
@@ -193,7 +203,8 @@ export default function NewTransactionPage() {
         {error && <p className="text-red-500 text-sm">{error}</p>}
 
         <button onClick={handleSave} disabled={saving}
-          className="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50">
+          className="w-full py-3.5 rounded-xl font-semibold transition-colors disabled:opacity-50"
+          style={{ backgroundColor: themeColor, color: cc.text }}>
           {saving ? 'Đang lưu...' : 'Lưu giao dịch'}
         </button>
       </div>

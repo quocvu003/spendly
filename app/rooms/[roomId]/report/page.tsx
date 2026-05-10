@@ -7,6 +7,7 @@ import { supabase, type Settlement, type Transaction } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { ArrowLeft, History, FileText, ChevronRight, Calculator, User, ArrowRight } from 'lucide-react'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import { getContrastColors } from '@/lib/theme'
 
 function formatMoney(n: number) {
   return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + 'đ'
@@ -20,6 +21,12 @@ export default function ReportPage() {
   const [loading, setLoading] = useState(true)
   const [roomName, setRoomName] = useState('')
   const [userNames, setUserNames] = useState<Record<string, string>>({})
+  const [themeColor, setThemeColor] = useState('#4f46e5')
+
+  useEffect(() => {
+    const saved = localStorage.getItem(`spendly_room_theme_${roomId}`)
+    if (saved) setThemeColor(saved)
+  }, [roomId])
   
   // Detail view states
   const [selectedSettle, setSelectedSettle] = useState<Settlement | null>(null)
@@ -122,25 +129,27 @@ export default function ReportPage() {
     setDetailLoading(false)
   }
 
+  const cc = getContrastColors(themeColor)
+
   return (
     <main className="max-w-md mx-auto min-h-screen bg-gray-50 pb-10">
       {/* Header */}
-      <div className="bg-indigo-600 px-4 pt-5 pb-4">
+      <div className="px-4 pt-5 pb-4" style={{ backgroundColor: themeColor }}>
         <div className="flex items-center gap-3 mb-2">
           {selectedSettle ? (
-            <button onClick={() => setSelectedSettle(null)} className="text-indigo-200 hover:text-white">
+            <button onClick={() => setSelectedSettle(null)} style={{ color: cc.muted }}>
               <ArrowLeft size={22} />
             </button>
           ) : (
-            <Link href={`/rooms/${roomId}`} className="text-indigo-200 hover:text-white">
+            <Link href={`/rooms/${roomId}`} style={{ color: cc.muted }}>
               <ArrowLeft size={22} />
             </Link>
           )}
           <div>
-            <h1 className="text-white font-bold text-lg">
+            <h1 className="font-bold text-lg" style={{ color: cc.text }}>
               {selectedSettle ? 'Kết quả kỳ chốt' : 'Lịch sử Báo báo'}
             </h1>
-            <p className="text-indigo-200 text-xs">{roomName}</p>
+            <p className="text-xs" style={{ color: cc.muted }}>{roomName}</p>
           </div>
         </div>
       </div>
