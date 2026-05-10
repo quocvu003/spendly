@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { supabase, type Transaction, type RoomMember, type Room } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { ArrowLeft, ArrowUp, ArrowDown, Plus, Users, BarChart2, Trash2, UserPlus, ChevronLeft, ChevronRight } from 'lucide-react'
+import LoadingSpinner from '@/components/LoadingSpinner'
 
 const PAGE_SIZE = 10
 
@@ -298,13 +299,13 @@ export default function RoomPage() {
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
   if (loading) {
-    return <div className="max-w-md mx-auto pt-20 text-center text-gray-400">Đang tải...</div>
+    return <LoadingSpinner message="Đang tải phòng..." fullscreen />
   }
 
   return (
     <main className="max-w-md mx-auto min-h-screen bg-gray-50 pb-24">
       {/* Header */}
-      <div className="bg-indigo-600 px-4 pt-12 pb-4">
+      <div className="bg-indigo-600 px-4 pt-8 pb-4">
         <div className="flex items-center gap-3 mb-4">
           <Link href="/rooms?mode=list" className="text-indigo-200 hover:text-white">
             <ArrowLeft size={22} />
@@ -408,7 +409,7 @@ export default function RoomPage() {
             </div>
 
             {pageLoading ? (
-              <div className="text-center py-16 text-gray-400 text-sm">Đang tải...</div>
+              <LoadingSpinner message="Đang tải giao dịch..." size="sm" />
             ) : transactions.length === 0 ? (
               <div className="text-center py-16 text-gray-400">
                 <p className="text-sm">Không có giao dịch nào khớp bộ lọc</p>
@@ -556,7 +557,7 @@ export default function RoomPage() {
         {tab === 'settle' && (
           <div className="space-y-4">
             {settleLoading ? (
-              <div className="text-center py-16 text-gray-400 text-sm">Đang tính toán...</div>
+            <LoadingSpinner message="Đang tính toán..." size="sm" />
             ) : (
               <>
                 <div className="bg-white rounded-2xl border border-gray-100 p-4">
