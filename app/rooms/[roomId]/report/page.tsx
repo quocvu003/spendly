@@ -21,6 +21,7 @@ export default function ReportPage() {
   const [loading, setLoading] = useState(true)
   const [roomName, setRoomName] = useState('')
   const [userNames, setUserNames] = useState<Record<string, string>>({})
+  const [userAvatars, setUserAvatars] = useState<Record<string, string>>({})
   const [themeColor, setThemeColor] = useState('#4f46e5')
 
   useEffect(() => {
@@ -40,10 +41,9 @@ export default function ReportPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/'); return }
 
-    const [{ data: roomData }, { data: settleData }, { data: membersData }] = await Promise.all([
+    const [{ data: roomData }, { data: settleData }] = await Promise.all([
       supabase.from('rooms').select('name').eq('id', roomId).single(),
       supabase.from('settlements').select('*').eq('room_id', roomId).order('created_at', { ascending: false }),
-      supabase.from('room_members').select('user_id').eq('room_id', roomId),
     ])
 
     if (roomData) setRoomName(roomData.name)
@@ -53,8 +53,9 @@ export default function ReportPage() {
     try {
       const res = await fetch(`/api/room-users?roomId=${roomId}`)
       if (res.ok) {
-        const { userMap } = await res.json()
+        const { userMap, avatarMap } = await res.json()
         if (userMap) setUserNames(userMap)
+        if (avatarMap) setUserAvatars(avatarMap)
       }
     } catch (e) {
       console.error('Failed to load names', e)
@@ -204,9 +205,18 @@ export default function ReportPage() {
                 <div className="space-y-3">
                   {detailBalances.map(b => (
                     <div key={b.user_id} className="flex items-center justify-between border-b border-white/10 pb-3 last:border-0 last:pb-0">
-                      <div>
-                        <p className="text-sm font-bold text-white mb-0.5">{b.label}</p>
-                        <p className="text-[10px] text-indigo-300">Đã chi: {formatMoney(b.totalPaid)}</p>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-indigo-800 flex items-center justify-center overflow-hidden">
+                          {userAvatars[b.user_id] ? (
+                            <img src={userAvatars[b.user_id]} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <User size={14} className="text-indigo-300" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-white mb-0.5">{b.label}</p>
+                          <p className="text-[10px] text-indigo-300">Đã chi: {formatMoney(b.totalPaid)}</p>
+                        </div>
                       </div>
                       <div className={`font-black text-sm px-3 py-1 rounded-full ${b.net >= 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                         {b.net >= 0 ? '+' : ''}{formatMoney(b.net)}
@@ -224,17 +234,27 @@ export default function ReportPage() {
                     <div key={tx.id} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
-                          <p className="font-bold text-gray-900 text-sm mb-1">{tx.description}</p>
+                          <p className="font-bold text-gray-900 text-sm mb-2">{tx.description}</p>
                           <div className="flex items-center gap-2">
-                            <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold">
-                              {format(new Date(tx.date), 'dd/MM')}
-                            </span>
-                            <span className="text-xs text-gray-400 flex items-center gap-1">
-                              <User size={10} /> {userNames[tx.paid_by] || 'Member'}
-                            </span>
+                            <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+                              {userAvatars[tx.paid_by] ? (
+                                <img src={userAvatars[tx.paid_by]} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <User size={12} className="text-gray-400" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold text-gray-900">{userNames[tx.paid_by] || 'Member'}</p>
+                              <p className="text-[10px] text-gray-500">Người trả</p>
+                            </div>
                           </div>
                         </div>
-                        <span className="font-bold text-indigo-600 ml-3">{formatMoney(tx.amount)}</span>
+                        <div className="flex flex-col items-end ml-3">
+                          <span className="font-bold text-indigo-600 mb-2">{formatMoney(tx.amount)}</span>
+                          <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold">
+                            {format(new Date(tx.date), 'dd/MM')}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   ))}
