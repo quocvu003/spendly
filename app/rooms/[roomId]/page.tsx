@@ -7,6 +7,8 @@ import { supabase, type Transaction, type RoomMember, type Room } from '@/lib/su
 import { format } from 'date-fns'
 import { ArrowLeft, ArrowUp, ArrowDown, Plus, Users, BarChart2, Trash2, UserPlus, ChevronLeft, ChevronRight } from 'lucide-react'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import ThemePicker from '@/components/ThemePicker'
+import { getContrastColors } from '@/lib/theme'
 
 const PAGE_SIZE = 10
 
@@ -28,6 +30,13 @@ export default function RoomPage() {
   const [currentUserId, setCurrentUserId] = useState('')
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'transactions' | 'members' | 'settle'>('transactions')
+  const [themeColor, setThemeColor] = useState('#4f46e5')
+  const [showTheme, setShowTheme] = useState(false)
+
+  function handleThemeChange(color: string) {
+    setThemeColor(color)
+    localStorage.setItem(`spendly_room_theme_${roomId}`, color)
+  }
 
   // Custom Popup states
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
@@ -75,6 +84,9 @@ export default function RoomPage() {
     ])
 
     if (!roomData) { router.push('/rooms'); return }
+
+    const savedTheme = localStorage.getItem(`spendly_room_theme_${roomId}`)
+    if (savedTheme) setThemeColor(savedTheme)
 
     setRoom(roomData)
     setTransactions((txResult.data as Transaction[]) ?? [])
@@ -297,6 +309,7 @@ export default function RoomPage() {
 
   const isOwner = room?.owner_id === currentUserId
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+  const cc = getContrastColors(themeColor)
 
   if (loading) {
     return <LoadingSpinner message="Đang tải phòng..." fullscreen />
@@ -305,22 +318,28 @@ export default function RoomPage() {
   return (
     <main className="max-w-md mx-auto min-h-screen bg-gray-50 pb-24">
       {/* Header */}
-      <div className="bg-indigo-600 px-4 pt-8 pb-4">
+      <div className="px-4 pt-8 pb-4" style={{ backgroundColor: themeColor }}>
         <div className="flex items-center gap-3 mb-4">
-          <Link href="/rooms?mode=list" className="text-indigo-200 hover:text-white">
+          <Link href="/rooms?mode=list" style={{ color: cc.muted }}>
             <ArrowLeft size={22} />
           </Link>
-          <h1 className="text-white font-bold text-lg flex-1 truncate">{room?.name}</h1>
+          <h1 className="font-bold text-lg flex-1 truncate" style={{ color: cc.text }}>{room?.name}</h1>
           <div className="flex items-center gap-2">
             <button onClick={() => handleTabChange('members')}
-              className={`p-2 rounded-full transition-colors ${tab === 'members' ? 'bg-white text-indigo-600' : 'bg-white/20 text-white'}`}>
+              className="p-2 rounded-full transition-colors"
+              style={tab === 'members' ? { backgroundColor: '#fff', color: themeColor } : { backgroundColor: cc.iconBg, color: cc.text }}>
               <Users size={18} />
             </button>
             <Link href={`/rooms/${roomId}/report`}
-              className="flex items-center gap-1 bg-white/20 text-white px-3 py-1.5 rounded-full text-xs font-medium">
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium"
+              style={{ backgroundColor: cc.iconBg, color: cc.text }}>
               <BarChart2 size={14} />
               Report
             </Link>
+            <ThemePicker color={themeColor} open={showTheme}
+              onToggle={() => setShowTheme(v => !v)}
+              onClose={() => setShowTheme(false)}
+              onChange={handleThemeChange} />
           </div>
         </div>
 
@@ -328,7 +347,8 @@ export default function RoomPage() {
         <div className="flex bg-white/20 rounded-xl p-1">
           {(['transactions', 'settle'] as const).map(t => (
             <button key={t} onClick={() => handleTabChange(t)}
-              className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === t ? 'bg-white text-indigo-600' : 'text-white'}`}>
+              className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === t ? 'bg-white' : 'text-white'}`}
+              style={tab === t ? { color: themeColor } : {}}>
               {t === 'transactions' ? '💸 Hoạt động' : '🤝 Thanh toán'}
             </button>
           ))}
@@ -346,11 +366,10 @@ export default function RoomPage() {
                 <button
                   key={t}
                   onClick={() => handleFilterType(t)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
-                    filterType === t
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-white text-gray-500 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
-                  }`}
+                  className="px-3 py-1 rounded-full text-xs font-medium transition-colors border"
+                  style={filterType === t
+                    ? { backgroundColor: themeColor, borderColor: themeColor, color: cc.text }
+                    : { backgroundColor: '#fff', borderColor: '#e5e7eb', color: '#6b7280' }}
                 >
                   {t === 'all' ? 'Tất cả' : t === 'shared' ? '🔵 Chung' : '🟠 Cá nhân'}
                 </button>
@@ -378,11 +397,10 @@ export default function RoomPage() {
                 <button
                   onClick={() => handleSort('date')}
                   title="Sắp xếp theo ngày"
-                  className={`flex items-center gap-0.5 px-2 h-7 rounded-lg border text-xs font-medium transition-colors ${
-                    sortField === 'date'
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-white text-gray-500 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
-                  }`}
+                  className="flex items-center gap-0.5 px-2 h-7 rounded-lg border text-xs font-medium transition-colors"
+                  style={sortField === 'date'
+                    ? { backgroundColor: themeColor, borderColor: themeColor, color: cc.text }
+                    : { backgroundColor: '#fff', borderColor: '#e5e7eb', color: '#6b7280' }}
                 >
                   📅
                   {sortField === 'date'
@@ -394,11 +412,10 @@ export default function RoomPage() {
                 <button
                   onClick={() => handleSort('amount')}
                   title="Sắp xếp theo số tiền"
-                  className={`flex items-center gap-0.5 px-2 h-7 rounded-lg border text-xs font-medium transition-colors ${
-                    sortField === 'amount'
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-white text-gray-500 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
-                  }`}
+                  className="flex items-center gap-0.5 px-2 h-7 rounded-lg border text-xs font-medium transition-colors"
+                  style={sortField === 'amount'
+                    ? { backgroundColor: themeColor, borderColor: themeColor, color: cc.text }
+                    : { backgroundColor: '#fff', borderColor: '#e5e7eb', color: '#6b7280' }}
                 >
                   💰
                   {sortField === 'amount'
@@ -609,7 +626,8 @@ export default function RoomPage() {
 
       {/* FAB */}
       <Link href={`/rooms/${roomId}/transactions/new`}
-        className="fixed bottom-6 right-4 bg-indigo-600 text-white rounded-full px-5 py-3 flex items-center gap-2 shadow-lg hover:bg-indigo-700 transition-colors">
+        className="fixed bottom-6 right-4 rounded-full px-5 py-3 flex items-center gap-2 shadow-lg transition-colors"
+        style={{ backgroundColor: themeColor, color: cc.text }}>
         <Plus size={20} />
         <span className="font-medium text-sm">Thêm</span>
       </Link>

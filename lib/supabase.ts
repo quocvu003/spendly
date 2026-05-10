@@ -59,3 +59,22 @@ export type Balance = {
   email: string
   net: number // positive = others owe them, negative = they owe others
 }
+
+export type PersonalLabel = {
+  id: string
+  user_id: string
+  name: string
+  color: string
+  created_at: string
+}
+
+export type PersonalExpense = {
+  id: string
+  user_id: string
+  label_id: string | null
+  amount: number
+  description: string
+  date: string
+  created_at: string
+  label?: PersonalLabel | null
+}
