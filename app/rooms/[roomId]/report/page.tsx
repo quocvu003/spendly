@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { supabase, type Settlement, type Transaction } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { ArrowLeft, History, FileText, ChevronRight, Calculator, User, ArrowRight } from 'lucide-react'
+import LoadingSpinner from '@/components/LoadingSpinner'
 
 function formatMoney(n: number) {
   return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + 'đ'
@@ -124,7 +125,7 @@ export default function ReportPage() {
   return (
     <main className="max-w-md mx-auto min-h-screen bg-gray-50 pb-10">
       {/* Header */}
-      <div className="bg-indigo-600 px-4 pt-12 pb-6">
+      <div className="bg-indigo-600 px-4 pt-5 pb-4">
         <div className="flex items-center gap-3 mb-2">
           {selectedSettle ? (
             <button onClick={() => setSelectedSettle(null)} className="text-indigo-200 hover:text-white">
@@ -145,31 +146,26 @@ export default function ReportPage() {
       </div>
 
       {loading ? (
-        <div className="px-4 py-8 space-y-3">
-          {[1,2,3].map(i => <div key={i} className="bg-white rounded-2xl h-20 animate-pulse" />)}
-        </div>
+        <LoadingSpinner message="Đang tải báo cáo..." />
       ) : selectedSettle ? (
         // DETAIL VIEW
         <div className="px-4 py-5 animate-in slide-in-from-right duration-300">
-          <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 mb-6">
-            <div className="flex items-center gap-2 text-indigo-600 mb-2">
-              <Calculator size={18} />
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-4">
+            <div className="flex items-center gap-2 text-indigo-600 mb-1.5">
+              <Calculator size={16} />
               <span className="text-xs font-bold uppercase tracking-wider">Tổng chi tiêu kỳ này</span>
             </div>
-            <h2 className="text-xl font-bold text-gray-900 mb-1">
+            <h2 className="text-base font-bold text-gray-900 mb-1">
               {format(new Date(selectedSettle.start_date), 'dd/MM')} - {format(new Date(selectedSettle.end_date), 'dd/MM/yyyy')}
             </h2>
-            <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-50">
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
               <span className="text-gray-500 text-sm">Tổng cộng:</span>
-              <span className="text-2xl font-black text-indigo-600">{formatMoney(selectedSettle.total_amount)}</span>
+              <span className="text-xl font-black text-indigo-600">{formatMoney(selectedSettle.total_amount)}</span>
             </div>
           </div>
 
           {detailLoading ? (
-             <div className="space-y-4">
-               <div className="bg-white rounded-3xl h-40 animate-pulse" />
-               <div className="bg-white rounded-3xl h-60 animate-pulse" />
-             </div>
+            <LoadingSpinner message="Đang tính toán..." />
           ) : (
             <div className="space-y-6">
               {/* Payment Results */}

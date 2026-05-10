@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase, type Room } from '@/lib/supabase'
 import { Plus, LogOut, Home } from 'lucide-react'
+import LoadingSpinner from '@/components/LoadingSpinner'
 
 function RoomsList() {
   const router = useRouter()
@@ -123,9 +124,7 @@ function RoomsList() {
 
         {/* Room list */}
         {loading ? (
-          <div className="space-y-3">
-            {[1, 2].map(i => <div key={i} className="bg-white rounded-2xl h-20 animate-pulse" />)}
-          </div>
+          <LoadingSpinner message="Đang tải phòng..." />
         ) : rooms.length === 0 ? (
           <div className="text-center py-16 text-gray-400">
             <Home size={40} className="mx-auto mb-2 opacity-30" />
@@ -156,7 +155,7 @@ function RoomsList() {
 
 export default function RoomsPage() {
   return (
-    <Suspense fallback={<div className="max-w-md mx-auto pt-20 text-center text-gray-400">Đang tải Spendly...</div>}>
+    <Suspense fallback={<LoadingSpinner message="Đang tải Spendly..." fullscreen />}>
       <RoomsList />
     </Suspense>
   )

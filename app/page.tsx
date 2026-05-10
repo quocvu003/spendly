@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import LoadingSpinner from '@/components/LoadingSpinner'
 
 const STORAGE_KEY = 'spendly_saved_credentials'
 
@@ -103,16 +104,7 @@ export default function LoginPage() {
 
   // Màn hình loading khi đang tự động đăng nhập
   if (loading) {
-    return (
-      <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-white">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-4">
-            <span className="text-3xl">🏠</span>
-          </div>
-          <p className="text-gray-400 text-sm mt-2">Đang đăng nhập...</p>
-        </div>
-      </main>
-    )
+    return <LoadingSpinner message="Đang đăng nhập..." fullscreen />
   }
 
   return (

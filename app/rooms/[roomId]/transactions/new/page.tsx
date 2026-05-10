@@ -105,7 +105,16 @@ export default function NewTransactionPage() {
         {/* Type toggle */}
         <div className="flex bg-white/20 rounded-xl p-1">
           {(['shared', 'personal'] as const).map(t => (
-            <button key={t} onClick={() => setType(t)}
+            <button key={t} onClick={() => {
+              setType(t)
+              if (t === 'personal') {
+                // Bỏ current user ra khỏi danh sách chia
+                setSelectedMembers(members.map(m => m.user_id).filter(id => id !== currentUserId))
+              } else {
+                // Shared: chọn lại tất cả
+                setSelectedMembers(members.map(m => m.user_id))
+              }
+            }}
               className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${type === t ? 'bg-white text-gray-900' : 'text-white'}`}>
               {t === 'shared' ? '🏠 Chung' : '👤 Cá nhân'}
             </button>
@@ -149,7 +158,7 @@ export default function NewTransactionPage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Chia cho ai?</label>
             <div className="space-y-2">
-              {members.map(m => (
+              {members.filter(m => m.user_id !== currentUserId).map(m => (
                 <label key={m.user_id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
                   selectedMembers.includes(m.user_id) ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 bg-white'
                 }`}>
