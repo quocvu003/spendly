@@ -27,6 +27,7 @@ export default function RoomPage() {
   const [pageLoading, setPageLoading] = useState(false)
   const [members, setMembers] = useState<RoomMember[]>([])
   const [userNames, setUserNames] = useState<Record<string, string>>({})
+  const [userAvatars, setUserAvatars] = useState<Record<string, string>>({})
   const [currentUserId, setCurrentUserId] = useState('')
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'transactions' | 'members' | 'settle'>('transactions')
@@ -73,7 +74,7 @@ export default function RoomPage() {
     ] = await Promise.all([
       supabase.from('rooms').select('*').eq('id', roomId).single(),
       supabase.from('room_members').select('*').eq('room_id', roomId),
-      fetch(`/api/room-users?roomId=${roomId}`).then(r => r.ok ? r.json() : { userMap: {} }).catch(() => ({ userMap: {} })),
+      fetch(`/api/room-users?roomId=${roomId}`).then(r => r.ok ? r.json() : { userMap: {}, avatarMap: {} }).catch(() => ({ userMap: {}, avatarMap: {} })),
       supabase
         .from('transactions')
         .select('*, splits:transaction_splits(*)', { count: 'exact' })
@@ -94,6 +95,7 @@ export default function RoomPage() {
     setPage(1)
     setMembers((memberData as RoomMember[]) ?? [])
     setUserNames(userNamesRes?.userMap ?? {})
+    setUserAvatars(userNamesRes?.avatarMap ?? {})
     setSettleLoaded(false)
     setLoading(false)
   }, [roomId, router])
@@ -437,26 +439,32 @@ export default function RoomPage() {
                   <div key={tx.id} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        <div className="mb-1">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium inline-block ${
                             tx.type === 'shared' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
                           }`}>
                             {tx.type === 'shared' ? 'Chung' : 'Cá nhân'}
                           </span>
-                          <span className="text-xs text-gray-400">{format(new Date(tx.date), 'dd/MM/yyyy')}</span>
                         </div>
                         <p className="font-medium text-sm text-gray-900">{tx.description}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          Người trả: {tx.paid_by === currentUserId ? 'Bạn' : (userNames[tx.paid_by] ?? tx.paid_by.slice(0, 8) + '...')}
+                        <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5">
+                          Người trả: 
+                          {userAvatars[tx.paid_by] && (
+                            <img src={userAvatars[tx.paid_by]} alt="" className="w-4 h-4 rounded-full object-cover inline-block" />
+                          )}
+                          {tx.paid_by === currentUserId ? 'Bạn' : (userNames[tx.paid_by] ?? tx.paid_by.slice(0, 8) + '...')}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2 ml-3">
-                        <span className="font-bold text-sm text-gray-900">{formatMoney(tx.amount)}</span>
-                        {tx.paid_by === currentUserId && (
-                          <button onClick={() => confirmDelete(tx.id)} className="text-gray-300 hover:text-red-400">
-                            <Trash2 size={16} />
-                          </button>
-                        )}
+                      <div className="flex flex-col items-end gap-1.5 ml-3">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-gray-900">{formatMoney(tx.amount)}</span>
+                          {tx.paid_by === currentUserId && (
+                            <button onClick={() => confirmDelete(tx.id)} className="text-gray-300 hover:text-red-400">
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">{format(new Date(tx.date), 'dd/MM/yyyy')}</span>
                       </div>
                     </div>
                   </div>
@@ -547,8 +555,12 @@ export default function RoomPage() {
               {members.map(m => (
                 <div key={m.id} className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 bg-indigo-100 rounded-full flex items-center justify-center">
-                      <Users size={16} className="text-indigo-600" />
+                    <div className="w-9 h-9 bg-indigo-100 rounded-full flex items-center justify-center overflow-hidden">
+                      {userAvatars[m.user_id] ? (
+                        <img src={userAvatars[m.user_id]} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <Users size={16} className="text-indigo-600" />
+                      )}
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900">

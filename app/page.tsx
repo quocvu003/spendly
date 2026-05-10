@@ -20,19 +20,9 @@ export default function LoginPage() {
   const [message, setMessage] = useState('')
   const autoLoginAttempted = useRef(false)
 
-  // Hàm redirect sau khi đăng nhập thành công
-  async function redirectAfterLogin(userId: string) {
-    const { data: memberships } = await supabase
-      .from('room_members')
-      .select('room_id, rooms!inner(id)')
-      .eq('user_id', userId)
-
-    const list = (memberships ?? []) as unknown as Array<{ room_id: string; rooms: { id: string } }>
-    if (list.length === 1) {
-      router.replace(`/rooms/${list[0].rooms.id}`)
-    } else {
-      router.replace('/rooms')
-    }
+  // Redirect sau khi đăng nhập thành công
+  function redirectAfterLogin() {
+    router.replace('/rooms?mode=list')
   }
 
   // Auto-login khi có saved credentials
@@ -52,7 +42,7 @@ export default function LoginPage() {
     supabase.auth.signInWithPassword({ email: syntheticEmail, password: savedPass })
       .then(({ data, error }) => {
         if (!error && data.user) {
-          redirectAfterLogin(data.user.id)
+          redirectAfterLogin()
         } else {
           // Credentials cũ không còn hợp lệ → xóa và hiện form
           localStorage.removeItem(STORAGE_KEY)
@@ -93,9 +83,9 @@ export default function LoginPage() {
 
         const userId = signInData.user?.id
         if (userId) {
-          await redirectAfterLogin(userId)
+          await redirectAfterLogin()
         } else {
-          router.replace('/rooms')
+          router.replace('/rooms?mode=list')
         }
       }
     }
@@ -108,14 +98,15 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-white px-4">
+    <main className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: '#6c7ee1' }}>
       <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-4">
-            <span className="text-3xl">🏠</span>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Spendly</h1>
-          <p className="text-gray-500 text-sm mt-1">Chia tiền phòng trọ dễ dàng</p>
+        <div className="flex flex-col items-center mb-8">
+          <img
+            src="/spendly_logo.svg"
+            alt="Spendly"
+            style={{ width: 220, height: 'auto' }}
+          />
+          <p className="text-indigo-100 text-sm mt-2">Quản lý chi tiêu thông minh</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">

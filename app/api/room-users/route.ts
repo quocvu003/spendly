@@ -33,19 +33,20 @@ export async function GET(request: Request) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (adminClient as any).rpc('get_room_user_map', {
     p_room_id: roomId,
-  }) as { data: { id: string; username: string | null }[] | null; error: unknown }
+  }) as { data: { id: string; username: string | null; display_name: string | null; avatar_url: string | null }[] | null; error: unknown }
 
   if (error) {
-    // Fallback: nếu function chưa được tạo, dùng lại 3-query flow cũ
     return fallback(adminClient, roomId)
   }
 
   const userMap: Record<string, string> = {}
+  const avatarMap: Record<string, string> = {}
   data?.forEach(p => {
-    userMap[p.id] = p.username ?? 'User ' + p.id.slice(0, 6)
+    userMap[p.id] = p.display_name || p.username || 'User ' + p.id.slice(0, 6)
+    if (p.avatar_url) avatarMap[p.id] = p.avatar_url
   })
 
-  return NextResponse.json({ userMap })
+  return NextResponse.json({ userMap, avatarMap })
 }
 
 // ─── Fallback (dùng khi RPC chưa deploy) ───────────────────────────────────
@@ -63,14 +64,16 @@ async function fallback(adminClient: ReturnType<typeof createClient>, roomId: st
 
   const profilesRes = await adminClient
     .from('profiles')
-    .select('id, username')
+    .select('id, username, display_name, avatar_url')
     .in('id', Array.from(ids))
 
   const userMap: Record<string, string> = {}
-  ;(profilesRes.data as { id: string; username: string | null }[] | null)?.forEach(p => {
-    userMap[p.id] = p.username ?? 'User ' + p.id.slice(0, 6)
+  const avatarMap: Record<string, string> = {}
+  ;(profilesRes.data as { id: string; username: string | null; display_name: string | null; avatar_url: string | null }[] | null)?.forEach(p => {
+    userMap[p.id] = p.display_name || p.username || 'User ' + p.id.slice(0, 6)
+    if (p.avatar_url) avatarMap[p.id] = p.avatar_url
   })
 
-  return NextResponse.json({ userMap })
+  return NextResponse.json({ userMap, avatarMap })
 }
 
