@@ -7,6 +7,7 @@ import { supabase, type PersonalLabel } from '@/lib/supabase'
 import { ArrowLeft, Plus, Pencil, Trash2, X, Check } from 'lucide-react'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { getContrastColors } from '@/lib/theme'
+import GlobalProfileHeader from '@/components/GlobalProfileHeader'
 
 const PRESET_COLORS = [
   '#6c7ee1', '#92b9e3', '#ffc4a4', '#fba2d0',
@@ -20,6 +21,8 @@ export default function LabelsPage() {
   const [labels, setLabels] = useState<PersonalLabel[]>([])
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState('')
+  const [avatar, setAvatar] = useState('')
+  const [displayName, setDisplayName] = useState('User')
 
   // Add/Edit state
   const [showForm, setShowForm] = useState(false)
@@ -41,6 +44,13 @@ export default function LabelsPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
       setUserId(user.id)
+      
+      const { data: profile } = await supabase.from('profiles').select('display_name, avatar_url').eq('id', user.id).single()
+      if (profile) {
+        setDisplayName(profile.display_name || user.email?.split('@')[0] || 'User')
+        setAvatar(profile.avatar_url || '')
+      }
+
       const { data } = await supabase.from('personal_labels').select('*').order('created_at')
       setLabels((data as PersonalLabel[]) ?? [])
       setLoading(false)
@@ -91,6 +101,7 @@ export default function LabelsPage() {
     <main className="max-w-md mx-auto min-h-screen bg-gray-50 pb-10">
       {/* Header */}
       <div className="px-4 pt-6 pb-4" style={{ backgroundColor: themeColor }}>
+        <GlobalProfileHeader textColor={cc.text} />
         <div className="flex items-center gap-3">
           <Link href="/personal" style={{ color: cc.muted }}>
             <ArrowLeft size={22} />

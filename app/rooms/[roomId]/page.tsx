@@ -5,10 +5,11 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase, type Transaction, type RoomMember, type Room } from '@/lib/supabase'
 import { format } from 'date-fns'
-import { ArrowLeft, ArrowUp, ArrowDown, Plus, Users, BarChart2, Trash2, UserPlus, ChevronLeft, ChevronRight, Pencil } from 'lucide-react'
+import { ArrowLeft, ArrowUp, ArrowDown, Plus, Users, BarChart2, Trash2, UserPlus, ChevronLeft, ChevronRight, Pencil, Settings } from 'lucide-react'
 import LoadingSpinner from '@/components/LoadingSpinner'
-import ThemePicker from '@/components/ThemePicker'
 import { getContrastColors } from '@/lib/theme'
+import GlobalProfileHeader from '@/components/GlobalProfileHeader'
+import ProfileSettingsModal from '@/components/ProfileSettingsModal'
 
 const PAGE_SIZE = 10
 
@@ -17,6 +18,7 @@ function formatMoney(n: number) {
 }
 
 export default function RoomPage() {
+  console.log("Trigger rebuild")
   const router = useRouter()
   const { roomId } = useParams<{ roomId: string }>()
 
@@ -32,7 +34,7 @@ export default function RoomPage() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'transactions' | 'members' | 'settle'>('transactions')
   const [themeColor, setThemeColor] = useState('#4f46e5')
-  const [showTheme, setShowTheme] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
 
   function handleThemeChange(color: string) {
     setThemeColor(color)
@@ -320,7 +322,8 @@ export default function RoomPage() {
   return (
     <main className="max-w-md mx-auto min-h-screen bg-gray-50 pb-24">
       {/* Header */}
-      <div className="px-4 pt-8 pb-4" style={{ backgroundColor: themeColor }}>
+      <div className="px-4 pt-6 pb-4" style={{ backgroundColor: themeColor }}>
+        <GlobalProfileHeader textColor={cc.text} />
         <div className="flex items-center gap-3 mb-4">
           <Link href="/rooms?mode=list" style={{ color: cc.muted }}>
             <ArrowLeft size={22} />
@@ -338,10 +341,9 @@ export default function RoomPage() {
               <BarChart2 size={14} />
               Report
             </Link>
-            <ThemePicker color={themeColor} open={showTheme}
-              onToggle={() => setShowTheme(v => !v)}
-              onClose={() => setShowTheme(false)}
-              onChange={handleThemeChange} />
+            <button onClick={() => setShowSettings(true)} className="p-2 rounded-full transition-colors" style={{ backgroundColor: cc.iconBg, color: cc.text }}>
+              <Settings size={18} />
+            </button>
           </div>
         </div>
 
@@ -687,6 +689,16 @@ export default function RoomPage() {
             <button onClick={() => setAlertMessage(null)} className="w-full px-4 py-3 rounded-xl font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-colors">Đã hiểu</button>
           </div>
         </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <ProfileSettingsModal 
+          onClose={() => setShowSettings(false)} 
+          themeColor={themeColor} 
+          currentTheme={themeColor}
+          onChangeTheme={handleThemeChange}
+        />
       )}
     </main>
   )
