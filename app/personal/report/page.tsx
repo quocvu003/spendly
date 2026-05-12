@@ -8,6 +8,7 @@ import { format, subMonths, addMonths, startOfMonth, endOfMonth } from 'date-fns
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { getContrastColors } from '@/lib/theme'
+import GlobalProfileHeader from '@/components/GlobalProfileHeader'
 
 function formatMoney(n: number) {
   return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + 'đ'
@@ -28,11 +29,16 @@ export default function PersonalReportPage() {
   const [isCustom, setIsCustom] = useState(false)
   const [expenses, setExpenses] = useState<PersonalExpense[]>([])
   const [labelSummaries, setLabelSummaries] = useState<LabelSummary[]>([])
+  const [personalName, setPersonalName] = useState('Sổ cá nhân')
   const [themeColor, setThemeColor] = useState('#059669')
+  const [avatar, setAvatar] = useState('')
+  const [displayName, setDisplayName] = useState('User')
 
   useEffect(() => {
-    const saved = localStorage.getItem('spendly_personal_theme')
-    if (saved) setThemeColor(saved)
+    const savedColor = localStorage.getItem('spendly_personal_theme')
+    if (savedColor) setThemeColor(savedColor)
+    const savedName = localStorage.getItem('spendly_personal_name')
+    if (savedName) setPersonalName(savedName)
   }, [])
 
   const getRange = useCallback(() => {
@@ -47,6 +53,13 @@ export default function PersonalReportPage() {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/'); return }
+
+    const { data: profile } = await supabase.from('profiles').select('display_name, avatar_url').eq('id', user.id).single()
+    if (profile) {
+      setDisplayName(profile.display_name || user.email?.split('@')[0] || 'User')
+      setAvatar(profile.avatar_url || '')
+    }
+
     const { from, to } = getRange()
     const { data } = await supabase
       .from('personal_expenses')
@@ -85,11 +98,14 @@ export default function PersonalReportPage() {
     <main className="max-w-md mx-auto min-h-screen bg-gray-50 pb-10">
       {/* Header */}
       <div className="px-4 pt-6 pb-4" style={{ backgroundColor: themeColor }}>
+        <GlobalProfileHeader textColor={cc.text} />
         <div className="flex items-center gap-3 mb-4">
           <Link href="/personal" style={{ color: cc.muted }}>
             <ArrowLeft size={22} />
           </Link>
-          <h1 className="font-bold text-lg flex-1" style={{ color: cc.text }}>Báo cáo chi tiêu</h1>
+          <h1 className="font-bold text-lg flex-1 truncate" style={{ color: cc.text }}>
+            Báo cáo: {personalName}
+          </h1>
         </div>
 
         {/* Mode toggle */}

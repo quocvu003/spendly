@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase, type PersonalLabel, type PersonalExpense } from '@/lib/supabase'
 import { format } from 'date-fns'
-import { ArrowLeft, Plus, Tag, BarChart2, ArrowUp, ArrowDown, Trash2, X, Pencil } from 'lucide-react'
+import { ArrowLeft, Plus, Tag, BarChart2, ArrowUp, ArrowDown, Trash2, X, Pencil, Settings } from 'lucide-react'
 import LoadingSpinner from '@/components/LoadingSpinner'
-import ThemePicker from '@/components/ThemePicker'
 import { getContrastColors } from '@/lib/theme'
+import GlobalProfileHeader from '@/components/GlobalProfileHeader'
+import ProfileSettingsModal from '@/components/ProfileSettingsModal'
 
 function formatMoney(n: number) {
   return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + 'đ'
@@ -25,6 +26,7 @@ function getMonthRange() {
 }
 
 export default function PersonalPage() {
+  console.log("Trigger rebuild")
   const router = useRouter()
   const [expenses, setExpenses] = useState<PersonalExpense[]>([])
   const [labels, setLabels] = useState<PersonalLabel[]>([])
@@ -49,7 +51,10 @@ export default function PersonalPage() {
   const [addError, setAddError] = useState('')
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [themeColor, setThemeColor] = useState('#059669')
-  const [showTheme, setShowTheme] = useState(false)
+  const [personalName, setPersonalName] = useState('Sổ cá nhân')
+  const [showSettings, setShowSettings] = useState(false)
+  const [avatar, setAvatar] = useState('')
+  const [displayName, setDisplayName] = useState('User')
 
   function handleThemeChange(color: string) {
     setThemeColor(color)
@@ -76,8 +81,17 @@ export default function PersonalPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
       setUserId(user.id)
-      const saved = localStorage.getItem('spendly_personal_theme')
-      if (saved) setThemeColor(saved)
+      const savedTheme = localStorage.getItem('spendly_personal_theme')
+      if (savedTheme) setThemeColor(savedTheme)
+      const savedName = localStorage.getItem('spendly_personal_name')
+      if (savedName) setPersonalName(savedName)
+
+      const { data: profile } = await supabase.from('profiles').select('display_name, avatar_url').eq('id', user.id).single()
+      if (profile) {
+        setDisplayName(profile.display_name || user.email?.split('@')[0] || 'User')
+        setAvatar(profile.avatar_url || '')
+      }
+
       const { data } = await supabase.from('personal_labels').select('*').order('created_at')
       setLabels((data as PersonalLabel[]) ?? [])
       await fetchExpenses('all', defaultRange.from, defaultRange.to, 'date', 'desc')
@@ -174,12 +188,13 @@ export default function PersonalPage() {
   return (
     <main className="max-w-md mx-auto min-h-screen bg-gray-50 pb-24">
       {/* Header */}
-      <div className="px-4 pt-8 pb-4" style={{ backgroundColor: themeColor }}>
+      <div className="px-4 pt-6 pb-4" style={{ backgroundColor: themeColor }}>
+        <GlobalProfileHeader textColor={cc.text} />
         <div className="flex items-center gap-3 mb-3">
           <Link href="/rooms?mode=list" style={{ color: cc.muted }}>
             <ArrowLeft size={22} />
           </Link>
-          <h1 className="font-bold text-lg flex-1" style={{ color: cc.text }}>Sổ cá nhân</h1>
+          <h1 className="font-bold text-lg flex-1 truncate" style={{ color: cc.text }}>{personalName}</h1>
           <div className="flex items-center gap-2">
             <Link href="/personal/labels" className="p-2 rounded-full transition-colors" style={{ backgroundColor: cc.iconBg, color: cc.text }}>
               <Tag size={18} />
@@ -187,10 +202,9 @@ export default function PersonalPage() {
             <Link href="/personal/report" className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium" style={{ backgroundColor: cc.iconBg, color: cc.text }}>
               <BarChart2 size={14} /> Report
             </Link>
-            <ThemePicker color={themeColor} open={showTheme}
-              onToggle={() => setShowTheme(v => !v)}
-              onClose={() => setShowTheme(false)}
-              onChange={handleThemeChange} />
+            <button onClick={() => setShowSettings(true)} className="p-2 rounded-full transition-colors" style={{ backgroundColor: cc.iconBg, color: cc.text }}>
+              <Settings size={18} />
+            </button>
           </div>
         </div>
 
@@ -382,6 +396,16 @@ export default function PersonalPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <ProfileSettingsModal 
+          onClose={() => setShowSettings(false)} 
+          themeColor={themeColor} 
+          currentTheme={themeColor}
+          onChangeTheme={handleThemeChange}
+        />
       )}
     </main>
   )

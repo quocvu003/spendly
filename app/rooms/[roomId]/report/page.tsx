@@ -8,6 +8,7 @@ import { format } from 'date-fns'
 import { ArrowLeft, History, FileText, ChevronRight, Calculator, User, ArrowRight } from 'lucide-react'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { getContrastColors } from '@/lib/theme'
+import GlobalProfileHeader from '@/components/GlobalProfileHeader'
 
 function formatMoney(n: number) {
   return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + 'đ'
@@ -135,7 +136,8 @@ export default function ReportPage() {
   return (
     <main className="max-w-md mx-auto min-h-screen bg-gray-50 pb-10">
       {/* Header */}
-      <div className="px-4 pt-5 pb-4" style={{ backgroundColor: themeColor }}>
+      <div className="px-4 pt-6 pb-4" style={{ backgroundColor: themeColor }}>
+        <GlobalProfileHeader textColor={cc.text} />
         <div className="flex items-center gap-3 mb-2">
           {selectedSettle ? (
             <button onClick={() => setSelectedSettle(null)} style={{ color: cc.muted }}>

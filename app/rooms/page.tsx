@@ -8,6 +8,8 @@ import { supabase, type Room } from '@/lib/supabase'
 import { Plus, LogOut, Home, BookOpen, ChevronRight, Settings, X, Check, Camera, Pencil } from 'lucide-react'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { getContrastColors } from '@/lib/theme'
+import GlobalProfileHeader from '@/components/GlobalProfileHeader'
+import ProfileSettingsModal from '@/components/ProfileSettingsModal'
 
 function RoomsList() {
   const router = useRouter()
@@ -18,20 +20,25 @@ function RoomsList() {
   const [showCreate, setShowCreate] = useState(false)
   const [roomName, setRoomName] = useState('')
   const [creating, setCreating] = useState(false)
+  const [dashboardTheme, setDashboardTheme] = useState('#6c7ee1')
   const [personalTheme, setPersonalTheme] = useState('#059669')
   const [roomThemes, setRoomThemes] = useState<Record<string, string>>({})
   const [showSettings, setShowSettings] = useState(false)
-  const [editDisplayName, setEditDisplayName] = useState('')
-  const [editAvatar, setEditAvatar] = useState('')
-  const [savingProfile, setSavingProfile] = useState(false)
   const [currentUserId, setCurrentUserId] = useState('')
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null)
   const [editRoomName, setEditRoomName] = useState('')
   const [savingRoom, setSavingRoom] = useState(false)
+  const [personalName, setPersonalName] = useState('Sổ cá nhân')
+  const [showEditPersonalName, setShowEditPersonalName] = useState(false)
+  const [editPersonalNameValue, setEditPersonalNameValue] = useState('')
 
   useEffect(() => {
-    const saved = localStorage.getItem('spendly_personal_theme')
-    if (saved) setPersonalTheme(saved)
+    const savedDash = localStorage.getItem('spendly_dashboard_theme')
+    if (savedDash) setDashboardTheme(savedDash)
+    const savedTheme = localStorage.getItem('spendly_personal_theme')
+    if (savedTheme) setPersonalTheme(savedTheme)
+    const savedName = localStorage.getItem('spendly_personal_name')
+    if (savedName) setPersonalName(savedName)
   }, [])
 
   useEffect(() => {
@@ -119,37 +126,16 @@ function RoomsList() {
     setSavingRoom(false)
   }
 
-  async function openSettings() {
-    const savedAvatar = localStorage.getItem('spendly_avatar') || ''
-    setEditAvatar(savedAvatar)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      const { data } = await supabase.from('profiles').select('display_name, avatar_url').eq('id', user.id).single()
-      setEditDisplayName((data as any)?.display_name || '')
-      if ((data as any)?.avatar_url) {
-        setEditAvatar((data as any).avatar_url)
-      }
-    }
-    setShowSettings(true)
+  function savePersonalName() {
+    const trimmed = editPersonalNameValue.trim() || 'Sổ cá nhân'
+    setPersonalName(trimmed)
+    localStorage.setItem('spendly_personal_name', trimmed)
+    setShowEditPersonalName(false)
   }
 
-  async function saveProfile() {
-    setSavingProfile(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      const { error } = await supabase.from('profiles').update({ 
-        display_name: editDisplayName.trim() || null,
-        avatar_url: editAvatar || null
-      }).eq('id', user.id)
-      if (error) console.error('Save profile error:', error)
-      if (editAvatar) {
-        localStorage.setItem('spendly_avatar', editAvatar)
-      } else {
-        localStorage.removeItem('spendly_avatar')
-      }
-    }
-    setSavingProfile(false)
-    setShowSettings(false)
+  function handleThemeChange(color: string) {
+    setDashboardTheme(color)
+    localStorage.setItem('spendly_dashboard_theme', color)
   }
 
   async function logout() {
@@ -161,7 +147,8 @@ function RoomsList() {
   return (
     <main className="max-w-md mx-auto min-h-screen bg-gray-50 pb-10">
       {/* Header */}
-      <div className="px-4 pt-4 pb-4" style={{ backgroundColor: '#6c7ee1' }}>
+      <div className="px-4 pt-6 pb-4" style={{ backgroundColor: dashboardTheme, transition: 'background-color 0.3s' }}>
+        <GlobalProfileHeader textColor="#ffffff" />
         <div className="flex items-center justify-between">
           <Image
             src="/spendly_logo.svg"
@@ -171,7 +158,7 @@ function RoomsList() {
             priority
           />
           <div className="flex items-center gap-3">
-            <button onClick={openSettings} className="text-indigo-200 hover:text-white transition-colors">
+            <button onClick={() => setShowSettings(true)} className="text-indigo-200 hover:text-white transition-colors">
               <Settings size={20} />
             </button>
             <button onClick={logout} className="text-indigo-200 hover:text-white transition-colors">
@@ -192,11 +179,11 @@ function RoomsList() {
               onKeyDown={e => e.key === 'Enter' && createRoom()}
               placeholder="Ví dụ: Phòng 101..."
               autoFocus
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 mb-3" style={{ outlineColor: '#6c7ee1' }}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 mb-3" style={{ outlineColor: dashboardTheme }}
             />
             <div className="flex gap-2">
               <button onClick={createRoom} disabled={creating}
-                className="flex-1 text-white py-2 rounded-xl text-sm font-medium disabled:opacity-50" style={{ backgroundColor: '#6c7ee1' }}>
+                className="flex-1 text-white py-2 rounded-xl text-sm font-medium disabled:opacity-50" style={{ backgroundColor: dashboardTheme }}>
                 {creating ? 'Đang tạo...' : 'Tạo phòng'}
               </button>
               <button onClick={() => setShowCreate(false)}
@@ -207,7 +194,7 @@ function RoomsList() {
           </div>
         ) : (
           <button onClick={() => setShowCreate(true)}
-            className="w-full flex items-center justify-center gap-2 text-white py-3 rounded-2xl font-medium text-sm mb-4 transition-colors" style={{ backgroundColor: '#6c7ee1' }}>
+            className="w-full flex items-center justify-center gap-2 text-white py-3 rounded-2xl font-medium text-sm mb-4 transition-colors" style={{ backgroundColor: dashboardTheme }}>
             <Plus size={18} />
             Tạo phòng mới
           </button>
@@ -224,10 +211,19 @@ function RoomsList() {
                 <BookOpen size={18} />
               </div>
               <div className="flex-1">
-                <p className="font-semibold text-sm" style={{ color: cc.text }}>Sổ cá nhân</p>
+                <p className="font-semibold text-sm" style={{ color: cc.text }}>{personalName}</p>
                 <p className="text-xs" style={{ color: cc.muted }}>Ghi chép chi tiêu của bạn</p>
               </div>
-              <ChevronRight size={18} style={{ color: cc.muted }} />
+              <div className="flex items-center">
+                <button onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setEditPersonalNameValue(personalName)
+                  setShowEditPersonalName(true)
+                }} className="pr-2 opacity-60 hover:opacity-100 transition-opacity" style={{ color: cc.text }}>
+                  <Pencil size={16} />
+                </button>
+              </div>
             </Link>
           )
         })()}
@@ -275,74 +271,12 @@ function RoomsList() {
 
       {/* Settings Modal */}
       {showSettings && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setShowSettings(false)}>
-          <div className="w-full max-w-md bg-white rounded-3xl p-6" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-base font-bold text-gray-900">Hồ sơ của bạn</h2>
-              <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Avatar */}
-            <div className="flex flex-col items-center mb-6">
-              <label className="relative cursor-pointer group">
-                <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border-2 border-dashed border-gray-200" style={{ transition: 'border-color 0.2s' }}>
-                  {editAvatar ? (
-                    <img src={editAvatar} alt="Avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    <Camera size={24} className="text-gray-300" />
-                  )}
-                </div>
-                <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#6c7ee1' }}>
-                  <Camera size={12} className="text-white" />
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={e => {
-                    const file = e.target.files?.[0]
-                    if (file) {
-                      const reader = new FileReader()
-                      reader.onload = ev => setEditAvatar(ev.target?.result as string)
-                      reader.readAsDataURL(file)
-                    }
-                  }}
-                />
-              </label>
-              {editAvatar && (
-                <button onClick={() => setEditAvatar('')} className="text-xs text-red-400 mt-2 hover:text-red-600">
-                  Xóa ảnh
-                </button>
-              )}
-            </div>
-
-            {/* Display Name */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Tên hiển thị</label>
-              <input
-                value={editDisplayName}
-                onChange={e => setEditDisplayName(e.target.value)}
-                placeholder="Tên của bạn..."
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2"
-                style={{ outlineColor: '#6c7ee1' }}
-                onKeyDown={e => e.key === 'Enter' && saveProfile()}
-              />
-              <p className="text-xs text-gray-400 mt-1">Tên này sẽ hiển thị trong báo cáo các phòng</p>
-            </div>
-
-            <button
-              onClick={saveProfile}
-              disabled={savingProfile}
-              className="w-full text-white py-3 rounded-2xl font-medium text-sm disabled:opacity-50 flex items-center justify-center gap-2"
-              style={{ backgroundColor: '#6c7ee1' }}
-            >
-              <Check size={16} />
-              {savingProfile ? 'Đang lưu...' : 'Lưu thay đổi'}
-            </button>
-          </div>
-        </div>
+        <ProfileSettingsModal 
+          onClose={() => setShowSettings(false)} 
+          themeColor={dashboardTheme} 
+          currentTheme={dashboardTheme}
+          onChangeTheme={handleThemeChange}
+        />
       )}
 
       {/* Edit Room Modal */}
@@ -364,8 +298,35 @@ function RoomsList() {
               </div>
               <button onClick={saveRoomName} disabled={savingRoom}
                 className="w-full py-3.5 rounded-xl font-semibold transition-colors disabled:opacity-50 text-white"
-                style={{ backgroundColor: '#6c7ee1' }}>
+                style={{ backgroundColor: dashboardTheme }}>
                 {savingRoom ? 'Đang lưu...' : 'Lưu'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Personal Name Modal */}
+      {showEditPersonalName && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          onClick={e => { if (e.target === e.currentTarget) setShowEditPersonalName(false) }}>
+          <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-bold text-gray-900">Đổi tên Sổ cá nhân</h3>
+              <button onClick={() => setShowEditPersonalName(false)} className="text-gray-400 hover:text-gray-600"><X size={22} /></button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tên sổ mới</label>
+                <input type="text" value={editPersonalNameValue} onChange={e => setEditPersonalNameValue(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && savePersonalName()}
+                  autoFocus
+                  placeholder="Ví dụ: Ví của tôi, Quỹ đen..." className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <button onClick={savePersonalName}
+                className="w-full py-3.5 rounded-xl font-semibold transition-colors text-white"
+                style={{ backgroundColor: dashboardTheme }}>
+                Lưu
               </button>
             </div>
           </div>
