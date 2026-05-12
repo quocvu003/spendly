@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase, type PersonalLabel, type PersonalExpense } from '@/lib/supabase'
 import { format } from 'date-fns'
-import { ArrowLeft, Plus, Tag, BarChart2, ArrowUp, ArrowDown, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Plus, Tag, BarChart2, ArrowUp, ArrowDown, Trash2, X, Pencil } from 'lucide-react'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import ThemePicker from '@/components/ThemePicker'
 import { getContrastColors } from '@/lib/theme'
@@ -43,6 +43,8 @@ export default function PersonalPage() {
   const [addDesc, setAddDesc] = useState('')
   const [addDate, setAddDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [addLabelId, setAddLabelId] = useState('')
+  const [addType, setAddType] = useState<'expense' | 'income'>('expense')
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [addError, setAddError] = useState('')
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -105,18 +107,53 @@ export default function PersonalPage() {
     setAddAmount(d ? parseInt(d).toLocaleString('vi-VN') : '')
   }
 
+  function openAdd() {
+    setEditingId(null)
+    setAddAmount('')
+    setAddDesc('')
+    setAddDate(format(new Date(), 'yyyy-MM-dd'))
+    setAddLabelId('')
+    setAddType('expense')
+    setAddError('')
+    setShowAdd(true)
+  }
+
+  function openEdit(exp: PersonalExpense) {
+    setEditingId(exp.id)
+    setAddAmount(exp.amount.toLocaleString('vi-VN'))
+    setAddDesc(exp.description)
+    setAddDate(exp.date)
+    setAddLabelId(exp.label_id || '')
+    setAddType(exp.type || 'expense')
+    setAddError('')
+    setShowAdd(true)
+  }
+
   async function handleSave() {
     if (!addAmount || !addDesc.trim()) { setAddError('Vui lòng điền đủ thông tin'); return }
     const num = parseFloat(addAmount.replace(/\./g, '').replace(/,/g, ''))
     if (isNaN(num) || num <= 0) { setAddError('Số tiền không hợp lệ'); return }
     setSaving(true)
-    const { error } = await supabase.from('personal_expenses').insert({
-      user_id: userId,
-      amount: num, description: addDesc.trim(), date: addDate,
-      label_id: addLabelId || null,
-    })
-    if (error) { setAddError(error.message); setSaving(false); return }
-    setShowAdd(false); setAddAmount(''); setAddDesc(''); setAddLabelId('')
+    
+    if (editingId) {
+      const { error } = await supabase.from('personal_expenses')
+        .update({
+          amount: num, description: addDesc.trim(), date: addDate,
+          label_id: addLabelId || null, type: addType
+        })
+        .eq('id', editingId)
+      if (error) { setAddError(error.message); setSaving(false); return }
+    } else {
+      const { error } = await supabase.from('personal_expenses').insert({
+        user_id: userId,
+        amount: num, description: addDesc.trim(), date: addDate,
+        label_id: addLabelId || null,
+        type: addType,
+      })
+      if (error) { setAddError(error.message); setSaving(false); return }
+    }
+    
+    setShowAdd(false); setEditingId(null); setAddAmount(''); setAddDesc(''); setAddLabelId(''); setAddType('expense');
     setAddDate(format(new Date(), 'yyyy-MM-dd')); setAddError(''); setSaving(false)
     fetchExpenses(filterLabel, filterFrom, filterTo, sortField, sortOrder)
   }
@@ -128,7 +165,9 @@ export default function PersonalPage() {
     fetchExpenses(filterLabel, filterFrom, filterTo, sortField, sortOrder)
   }
 
-  const total = expenses.reduce((s, e) => s + e.amount, 0)
+  const totalExpense = expenses.filter(e => e.type !== 'income').reduce((s, e) => s + e.amount, 0)
+  const totalIncome = expenses.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
+  const netTotal = totalIncome - totalExpense
   const cc = getContrastColors(themeColor)
   if (loading) return <LoadingSpinner message="Đang tải..." fullscreen />
 
@@ -171,9 +210,19 @@ export default function PersonalPage() {
           </div>
         </div>
 
-        <div className="rounded-xl px-3 py-2 flex justify-between items-center" style={{ backgroundColor: cc.iconBg }}>
-          <span className="text-xs" style={{ color: cc.muted }}>Tổng chi tiêu</span>
-          <span className="font-bold text-sm" style={{ color: cc.text }}>{formatMoney(total)}</span>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-xl px-2 py-2 flex flex-col items-center justify-center text-center" style={{ backgroundColor: cc.iconBg }}>
+            <span className="text-[10px] font-medium opacity-80" style={{ color: cc.text }}>Thu vào</span>
+            <span className="font-bold text-sm truncate w-full" style={{ color: cc.text }}>+{formatMoney(totalIncome)}</span>
+          </div>
+          <div className="rounded-xl px-2 py-2 flex flex-col items-center justify-center text-center" style={{ backgroundColor: cc.iconBg }}>
+            <span className="text-[10px] font-medium opacity-80" style={{ color: cc.text }}>Chi ra</span>
+            <span className="font-bold text-sm truncate w-full" style={{ color: cc.text }}>-{formatMoney(totalExpense)}</span>
+          </div>
+          <div className="rounded-xl px-2 py-2 flex flex-col items-center justify-center text-center" style={{ backgroundColor: cc.iconBg }}>
+            <span className="text-[10px] font-medium opacity-80" style={{ color: cc.text }}>Còn lại</span>
+            <span className="font-bold text-sm truncate w-full" style={{ color: cc.text }}>{netTotal >= 0 ? '+' : ''}{formatMoney(netTotal)}</span>
+          </div>
         </div>
       </div>
 
@@ -237,13 +286,20 @@ export default function PersonalPage() {
                     </div>
                     <p className="font-medium text-sm text-gray-900">{exp.description}</p>
                   </div>
-                  <div className="flex items-center gap-2 ml-3">
-                    <span className="font-bold text-sm text-gray-900">{formatMoney(exp.amount)}</span>
-                    <button onClick={() => setDeleteId(exp.id)} className="text-gray-300 hover:text-red-400">
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
+                      <div className="flex flex-col items-end gap-1.5 ml-3">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-bold text-sm ${exp.type === 'income' ? 'text-emerald-600' : 'text-gray-900'}`}>
+                            {exp.type === 'income' ? '+' : '-'}{formatMoney(exp.amount)}
+                          </span>
+                          <button onClick={() => openEdit(exp)} className="text-gray-300 hover:text-indigo-400">
+                            <Pencil size={16} />
+                          </button>
+                          <button onClick={() => setDeleteId(exp.id)} className="text-gray-300 hover:text-red-400">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
               </div>
             ))}
           </div>
@@ -251,7 +307,7 @@ export default function PersonalPage() {
       </div>
 
       {/* FAB */}
-      <button onClick={() => setShowAdd(true)}
+      <button onClick={openAdd}
         className="fixed bottom-6 right-4 rounded-full px-5 py-3 flex items-center gap-2 shadow-lg transition-colors"
         style={{ backgroundColor: themeColor, color: cc.text }}>
         <Plus size={20} /><span className="font-medium text-sm">Thêm</span>
@@ -263,10 +319,21 @@ export default function PersonalPage() {
           onClick={e => { if (e.target === e.currentTarget) setShowAdd(false) }}>
           <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-bold text-gray-900">Thêm chi tiêu</h3>
+              <h3 className="text-lg font-bold text-gray-900">{editingId ? 'Sửa giao dịch' : 'Thêm giao dịch'}</h3>
               <button onClick={() => setShowAdd(false)} className="text-gray-400 hover:text-gray-600"><X size={22} /></button>
             </div>
             <div className="space-y-4">
+              {/* Type Toggle */}
+              <div className="flex bg-gray-100 rounded-xl p-1">
+                {(['expense', 'income'] as const).map(t => (
+                  <button key={t} onClick={() => setAddType(t)}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${addType === t ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                    style={addType === t ? { color: themeColor } : {}}>
+                    {t === 'expense' ? '➖ Khoản chi' : '➕ Khoản thu'}
+                  </button>
+                ))}
+              </div>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Số tiền (VND)</label>
                 <input type="text" inputMode="numeric" value={addAmount} onChange={e => handleAmountChange(e.target.value)}
