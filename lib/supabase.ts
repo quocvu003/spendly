@@ -75,6 +75,7 @@ export type PersonalExpense = {
   amount: number
   description: string
   date: string
+  type: 'income' | 'expense'
   created_at: string
   label?: PersonalLabel | null
 }

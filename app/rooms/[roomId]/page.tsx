@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase, type Transaction, type RoomMember, type Room } from '@/lib/supabase'
 import { format } from 'date-fns'
-import { ArrowLeft, ArrowUp, ArrowDown, Plus, Users, BarChart2, Trash2, UserPlus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, ArrowUp, ArrowDown, Plus, Users, BarChart2, Trash2, UserPlus, ChevronLeft, ChevronRight, Pencil } from 'lucide-react'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import ThemePicker from '@/components/ThemePicker'
 import { getContrastColors } from '@/lib/theme'
@@ -459,9 +459,14 @@ export default function RoomPage() {
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-sm text-gray-900">{formatMoney(tx.amount)}</span>
                           {tx.paid_by === currentUserId && (
-                            <button onClick={() => confirmDelete(tx.id)} className="text-gray-300 hover:text-red-400">
-                              <Trash2 size={16} />
-                            </button>
+                            <div className="flex items-center gap-1">
+                              <Link href={`/rooms/${roomId}/transactions/${tx.id}/edit`} className="p-1 text-gray-300 hover:text-indigo-400 transition-colors">
+                                <Pencil size={16} />
+                              </Link>
+                              <button onClick={() => confirmDelete(tx.id)} className="p-1 text-gray-300 hover:text-red-400 transition-colors">
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
                           )}
                         </div>
                         <span className="text-[10px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">{format(new Date(tx.date), 'dd/MM/yyyy')}</span>

@@ -57,9 +57,9 @@ export default function PersonalReportPage() {
     const list = (data as PersonalExpense[]) ?? []
     setExpenses(list)
 
-    // Build label summaries
+    // Build label summaries (expenses only)
     const map = new Map<string, LabelSummary>()
-    list.forEach(exp => {
+    list.filter(e => e.type !== 'income').forEach(exp => {
       const key = exp.label_id ?? '__none__'
       if (!map.has(key)) map.set(key, { label: exp.label ?? null, total: 0, count: 0 })
       const s = map.get(key)!
@@ -72,7 +72,9 @@ export default function PersonalReportPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  const total = expenses.reduce((s, e) => s + e.amount, 0)
+  const totalExpense = expenses.filter(e => e.type !== 'income').reduce((s, e) => s + e.amount, 0)
+  const totalIncome = expenses.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
+  const netTotal = totalIncome - totalExpense
   const { from, to } = getRange()
   const cc = getContrastColors(themeColor)
 
@@ -134,25 +136,34 @@ export default function PersonalReportPage() {
         <div className="px-4 py-5 space-y-5">
           {/* Summary card */}
           <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-            <p className="text-xs text-gray-400 mb-1">
+            <p className="text-xs text-gray-400 mb-4 text-center">
               {format(new Date(from), 'dd/MM/yyyy')} → {format(new Date(to), 'dd/MM/yyyy')}
             </p>
-            <div className="flex items-end justify-between">
+            <div className="grid grid-cols-2 gap-4 text-center mb-4">
               <div>
-                <p className="text-xs text-gray-500 mb-1">Tổng chi tiêu</p>
-                <p className="text-3xl font-black text-emerald-600">{formatMoney(total)}</p>
+                <p className="text-[10px] text-gray-500 mb-1 font-bold uppercase tracking-wider">Tổng thu</p>
+                <p className="text-xl font-black text-emerald-600">+{formatMoney(totalIncome)}</p>
               </div>
-              <p className="text-sm text-gray-400">{expenses.length} khoản</p>
+              <div>
+                <p className="text-[10px] text-gray-500 mb-1 font-bold uppercase tracking-wider">Tổng chi</p>
+                <p className="text-xl font-black text-red-500">-{formatMoney(totalExpense)}</p>
+              </div>
+            </div>
+            <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
+              <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Số dư</p>
+              <p className={`text-2xl font-black ${netTotal >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                {netTotal >= 0 ? '+' : ''}{formatMoney(netTotal)}
+              </p>
             </div>
           </div>
 
           {/* Label breakdown */}
           {labelSummaries.length > 0 && (
             <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-              <h2 className="text-sm font-bold text-gray-900 mb-4">Theo danh mục</h2>
+              <h2 className="text-sm font-bold text-gray-900 mb-4">Cơ cấu chi tiêu</h2>
               <div className="space-y-3">
                 {labelSummaries.map((s, i) => {
-                  const pct = total > 0 ? (s.total / total) * 100 : 0
+                  const pct = totalExpense > 0 ? (s.total / totalExpense) * 100 : 0
                   const color = s.label?.color ?? '#9ca3af'
                   const name = s.label?.name ?? 'Không có label'
                   return (
@@ -195,7 +206,9 @@ export default function PersonalReportPage() {
                       </div>
                       <p className="text-sm text-gray-800">{exp.description}</p>
                     </div>
-                    <span className="font-bold text-sm text-gray-900">{formatMoney(exp.amount)}</span>
+                    <span className={`font-bold text-sm ${exp.type === 'income' ? 'text-emerald-600' : 'text-gray-900'}`}>
+                      {exp.type === 'income' ? '+' : '-'}{formatMoney(exp.amount)}
+                    </span>
                   </div>
                 ))}
               </div>
