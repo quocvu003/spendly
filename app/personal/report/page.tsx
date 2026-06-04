@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase, type PersonalLabel, type PersonalExpense } from '@/lib/supabase'
-import { format, subMonths, addMonths, startOfMonth, endOfMonth } from 'date-fns'
+import { format, subMonths, addMonths } from 'date-fns'
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { getContrastColors } from '@/lib/theme'
@@ -23,7 +23,14 @@ type LabelSummary = {
 export default function PersonalReportPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const now = new Date()
+    // Nếu hôm nay < ngày 10, chu kỳ hiện tại thuộc tháng trước
+    if (now.getDate() < 10) {
+      return new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    }
+    return new Date(now.getFullYear(), now.getMonth(), 1)
+  })
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
   const [isCustom, setIsCustom] = useState(false)
@@ -43,9 +50,14 @@ export default function PersonalReportPage() {
 
   const getRange = useCallback(() => {
     if (isCustom && customFrom && customTo) return { from: customFrom, to: customTo }
+    // Chu kỳ: ngày 10 tháng currentMonth → ngày 9 tháng sau
+    const y = currentMonth.getFullYear()
+    const m = currentMonth.getMonth()
+    const from = new Date(y, m, 10)
+    const to = new Date(y, m + 1, 9)
     return {
-      from: format(startOfMonth(currentMonth), 'yyyy-MM-dd'),
-      to: format(endOfMonth(currentMonth), 'yyyy-MM-dd'),
+      from: format(from, 'yyyy-MM-dd'),
+      to: format(to, 'yyyy-MM-dd'),
     }
   }, [isCustom, customFrom, customTo, currentMonth])
 
@@ -125,9 +137,14 @@ export default function PersonalReportPage() {
         {!isCustom ? (
           <div className="flex items-center justify-between rounded-xl px-3 py-2" style={{ backgroundColor: cc.iconBg }}>
             <button onClick={prevMonth} style={{ color: cc.text }} className="p-1"><ChevronLeft size={20} /></button>
-            <span className="font-semibold text-sm" style={{ color: cc.text }}>
-              Tháng {format(currentMonth, 'MM/yyyy')}
-            </span>
+            <div className="flex flex-col items-center">
+              <span className="font-semibold text-sm" style={{ color: cc.text }}>
+                Tháng {format(currentMonth, 'MM/yyyy')}
+              </span>
+              <span className="text-[10px] opacity-70" style={{ color: cc.text }}>
+                {format(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 10), 'dd/MM')} → {format(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 9), 'dd/MM/yyyy')}
+              </span>
+            </div>
             <button onClick={nextMonth} style={{ color: cc.text }} className="p-1"><ChevronRight size={20} /></button>
           </div>
         ) : (

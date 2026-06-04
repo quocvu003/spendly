@@ -17,8 +17,17 @@ function formatMoney(n: number) {
 
 function getMonthRange() {
   const now = new Date()
-  const from = new Date(now.getFullYear(), now.getMonth(), 1)
-  const to = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  const day = now.getDate()
+  let from: Date, to: Date
+  if (day >= 10) {
+    // Từ ngày 10 tháng này đến ngày 9 tháng sau
+    from = new Date(now.getFullYear(), now.getMonth(), 10)
+    to = new Date(now.getFullYear(), now.getMonth() + 1, 9)
+  } else {
+    // Từ ngày 10 tháng trước đến ngày 9 tháng này
+    from = new Date(now.getFullYear(), now.getMonth() - 1, 10)
+    to = new Date(now.getFullYear(), now.getMonth(), 9)
+  }
   return {
     from: format(from, 'yyyy-MM-dd'),
     to: format(to, 'yyyy-MM-dd'),
