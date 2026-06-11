@@ -1,20 +1,32 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, Suspense, useRef } from 'react'
 import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase, type Room } from '@/lib/supabase'
-import { Plus, LogOut, Home, BookOpen, ChevronRight, Settings, X, Check, Camera, Pencil } from 'lucide-react'
+import {
+  Plus, LogOut, Home, BookOpen, ChevronRight, Settings, X, Pencil,
+  Menu, ArrowRightCircle, BarChart2, Wallet, Users,
+} from 'lucide-react'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { getContrastColors } from '@/lib/theme'
 import GlobalProfileHeader from '@/components/GlobalProfileHeader'
 import ProfileSettingsModal from '@/components/ProfileSettingsModal'
+import { motion, AnimatePresence } from 'framer-motion'
+
+const NAV_LINKS = ['Tổng quan', 'Phòng chi tiêu', 'Cá nhân', 'Báo cáo', 'Trợ giúp']
+
+const fadeUp = (delay = 0) => ({
+  hidden: { opacity: 0, y: 28 },
+  visible: { opacity: 1, y: 0, transition: { delay, duration: 0.6, ease: [0.22, 1, 0.36, 1] as any } },
+})
 
 function RoomsList() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const mode = searchParams.get('mode')
+
   const [rooms, setRooms] = useState<Room[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
@@ -31,6 +43,9 @@ function RoomsList() {
   const [personalName, setPersonalName] = useState('Sổ cá nhân')
   const [showEditPersonalName, setShowEditPersonalName] = useState(false)
   const [editPersonalNameValue, setEditPersonalNameValue] = useState('')
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [displayName, setDisplayName] = useState('')
+  const listRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const savedDash = localStorage.getItem('spendly_dashboard_theme')
@@ -47,39 +62,30 @@ function RoomsList() {
       if (!user) { router.push('/'); return }
       setCurrentUserId(user.id)
 
-      // fetch rooms where user is a member
-      const { data: memberOf } = await supabase
-        .from('room_members')
-        .select('room_id')
-        .eq('user_id', user.id)
+      const { data: profile } = await supabase
+        .from('profiles').select('display_name').eq('id', user.id).single()
+      setDisplayName(profile?.display_name || user.email?.split('@')[0] || 'bạn')
 
+      const { data: memberOf } = await supabase
+        .from('room_members').select('room_id').eq('user_id', user.id)
       const roomIds = (memberOf ?? []).map(m => m.room_id)
 
       const { data } = roomIds.length > 0
-        ? await supabase
-          .from('rooms')
-          .select('*')
-          .in('id', roomIds)
-          .order('created_at', { ascending: false })
+        ? await supabase.from('rooms').select('*').in('id', roomIds).order('created_at', { ascending: false })
         : { data: [] }
 
       const roomsData = (data as Room[]) ?? []
-
-      // If there's only one room and we are not in 'list' mode, redirect to it automatically
       if (roomsData.length === 1 && mode !== 'list') {
-        router.replace(`/rooms/${roomsData[0].id}`)
-        return
+        router.replace(`/rooms/${roomsData[0].id}`); return
       }
 
       setRooms(roomsData)
-
       const themes: Record<string, string> = {}
       roomsData.forEach(r => {
         const saved = localStorage.getItem(`spendly_room_theme_${r.id}`)
         if (saved) themes[r.id] = saved
       })
       setRoomThemes(themes)
-
       setLoading(false)
     }
     load()
@@ -90,38 +96,23 @@ function RoomsList() {
     setCreating(true)
     const { data: { user } } = await supabase.auth.getUser()
     const { data, error } = await supabase
-      .from('rooms')
-      .insert({ name: roomName.trim(), owner_id: user!.id })
-      .select()
-      .single()
-
-    if (!error && data) {
-      setRooms(prev => [data, ...prev])
-      setRoomName('')
-      setShowCreate(false)
-    }
+      .from('rooms').insert({ name: roomName.trim(), owner_id: user!.id }).select().single()
+    if (!error && data) { setRooms(prev => [data, ...prev]); setRoomName(''); setShowCreate(false) }
     setCreating(false)
   }
 
   function openEditRoom(e: React.MouseEvent, room: Room) {
-    e.preventDefault()
-    e.stopPropagation()
-    setEditingRoomId(room.id)
-    setEditRoomName(room.name)
+    e.preventDefault(); e.stopPropagation()
+    setEditingRoomId(room.id); setEditRoomName(room.name)
   }
 
   async function saveRoomName() {
     if (!editRoomName.trim() || !editingRoomId) return
     setSavingRoom(true)
-    const { error } = await supabase
-      .from('rooms')
-      .update({ name: editRoomName.trim() })
-      .eq('id', editingRoomId)
-    
+    const { error } = await supabase.from('rooms').update({ name: editRoomName.trim() }).eq('id', editingRoomId)
     if (!error) {
       setRooms(prev => prev.map(r => r.id === editingRoomId ? { ...r, name: editRoomName.trim() } : r))
-      setEditingRoomId(null)
-      setEditRoomName('')
+      setEditingRoomId(null); setEditRoomName('')
     }
     setSavingRoom(false)
   }
@@ -144,46 +135,204 @@ function RoomsList() {
     router.push('/')
   }
 
+  const cc = getContrastColors(dashboardTheme)
+
   return (
-    <main className="max-w-md mx-auto min-h-screen bg-gray-50 pb-10">
-      {/* Header */}
-      <div className="px-4 pt-6 pb-4" style={{ backgroundColor: dashboardTheme, transition: 'background-color 0.3s' }}>
-        <GlobalProfileHeader textColor="#ffffff" />
-        <div className="flex items-center justify-between">
-          <Image
-            src="/spendly_logo.svg"
-            alt="Spendly"
-            width={200}
-            height={42}
-            priority
-          />
-          <div className="flex items-center gap-3">
-            <button onClick={() => setShowSettings(true)} className="text-indigo-200 hover:text-white transition-colors">
-              <Settings size={20} />
+    <div className="min-h-screen bg-[#F2F2EE]" style={{ fontFamily: "'Inter', sans-serif" }}>
+
+      {/* ── HERO SECTION ─────────────────────────────────────── */}
+      <div className="relative w-full min-h-screen overflow-hidden">
+        {/* Video background */}
+        <video
+          autoPlay muted loop playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+          src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260518_003132_8b7edcb6-c64d-4a52-a9ca-879942e122ad.mp4"
+        />
+        {/* Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-[#F2F2EE]" />
+
+        {/* ── NAVBAR ───────────────────────────────────────────── */}
+        <nav className="relative z-10 w-full">
+          <div className="max-w-7xl mx-auto px-5 sm:px-8 py-4 sm:py-5 flex items-center justify-between">
+            {/* Logo */}
+            <div className="flex items-center gap-2.5">
+              <Image src="/spendly_logo.svg" alt="Spendly" width={130} height={28} priority />
+            </div>
+
+            {/* Desktop nav links */}
+            <div className="hidden md:flex items-center gap-7">
+              {NAV_LINKS.map(link => (
+                <button key={link} className="text-sm font-medium text-white/90 hover:text-white transition-opacity">
+                  {link}
+                </button>
+              ))}
+            </div>
+
+            {/* Desktop right buttons */}
+            <div className="hidden md:flex items-center gap-2">
+              <button
+                onClick={() => setShowSettings(true)}
+                className="px-5 py-2.5 rounded-full text-sm font-semibold bg-[#7342E2] text-white hover:brightness-110 transition-all"
+              >
+                Cài đặt
+              </button>
+              <button
+                onClick={logout}
+                className="px-5 py-2.5 rounded-full text-sm font-semibold bg-[#F2F2EE] text-[#192837] hover:bg-white transition-all"
+              >
+                Đăng xuất
+              </button>
+            </div>
+
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="md:hidden p-2 rounded-xl text-white"
+            >
+              <Menu size={24} />
             </button>
-            <button onClick={logout} className="text-indigo-200 hover:text-white transition-colors">
-              <LogOut size={20} />
-            </button>
+          </div>
+        </nav>
+
+        {/* ── HERO CONTENT ─────────────────────────────────────── */}
+        <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-8" style={{ paddingTop: 'clamp(40px, 8vw, 72px)' }}>
+          <div style={{ maxWidth: 620 }}>
+            <motion.p
+              variants={fadeUp(0)} initial="hidden" animate="visible"
+              className="text-white/70 text-sm font-medium mb-2 tracking-wide uppercase"
+            >
+              Chào mừng trở lại
+            </motion.p>
+
+            <motion.h1
+              variants={fadeUp(0.1)} initial="hidden" animate="visible"
+              className="font-black text-white leading-[1.05] tracking-tight"
+              style={{ fontSize: 'clamp(2rem, 6vw, 3.5rem)', fontFamily: 'Inter, sans-serif', fontWeight: 900, marginBottom: '6px' }}
+            >
+              {displayName ? <>{displayName} <span className="text-white/40">👋</span></> : 'Bảng điều khiển'}
+            </motion.h1>
+
+            <motion.p
+              variants={fadeUp(0.18)} initial="hidden" animate="visible"
+              className="text-white/60 mb-6"
+              style={{
+                fontFamily: 'Inter, sans-serif',
+                fontStyle: 'normal',
+                fontWeight: 300,
+                fontSize: 'clamp(0.85rem, 2.2vw, 1.15rem)',
+                letterSpacing: '0.18em',
+                textTransform: 'uppercase',
+                lineHeight: 1.5,
+              }}
+            >
+              Tiết kiệm hôm nay, tích lũy tương lai
+            </motion.p>
+
+            <motion.div
+              variants={fadeUp(0.2)} initial="hidden" animate="visible"
+              className="flex flex-wrap gap-3 mb-8"
+            >
+              <div className="flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-2xl px-4 py-2.5">
+                <Home size={16} className="text-white/80" />
+                <span className="text-white text-sm font-medium">{rooms.length} phòng</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-2xl px-4 py-2.5">
+                <Wallet size={16} className="text-white/80" />
+                <span className="text-white text-sm font-medium">{personalName}</span>
+              </div>
+            </motion.div>
+
+            <motion.div variants={fadeUp(0.30)} initial="hidden" animate="visible">
+              <button
+                onClick={() => listRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                className="flex items-center justify-between gap-8 rounded-full text-white font-semibold transition-all hover:scale-[1.04] hover:brightness-110 active:scale-[0.96]"
+                style={{
+                  background: '#7342E2',
+                  padding: '17px 24px',
+                  fontSize: 'clamp(0.9rem, 2vw, 1rem)',
+                  boxShadow: '0 4px 24px rgba(115,66,226,0.28)',
+                  minWidth: 210,
+                }}
+              >
+                Xem danh sách
+                <ArrowRightCircle size={20} />
+              </button>
+            </motion.div>
           </div>
         </div>
       </div>
 
-      <div className="px-4 py-5">
-        {/* Create room */}
-        {showCreate ? (
-          <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-4">
-            <p className="font-medium text-sm text-gray-900 mb-3">Tên phòng mới</p>
+      {/* ── ROOM LIST SECTION ────────────────────────────────── */}
+      <div ref={listRef} className="max-w-2xl mx-auto px-4 pb-16 -mt-10 relative z-10">
+
+        {/* ── Featured: Personal Notebook ─────────────────────── */}
+        {(() => {
+          const pcc = getContrastColors(personalTheme)
+          return (
+            <Link href="/personal"
+              className="group relative flex items-center overflow-hidden rounded-3xl p-6 mb-4 shadow-xl transition-all hover:scale-[1.01] hover:shadow-2xl"
+              style={{ backgroundColor: personalTheme }}>
+              {/* decorative blobs */}
+              <div className="absolute -right-8 -top-8 w-36 h-36 rounded-full opacity-20" style={{ backgroundColor: pcc.text }} />
+              <div className="absolute -right-2 -bottom-6 w-24 h-24 rounded-full opacity-10" style={{ backgroundColor: pcc.text }} />
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 mr-5"
+                style={{ backgroundColor: pcc.iconBg }}>
+                <BookOpen size={24} style={{ color: personalTheme }} />
+              </div>
+              <div className="flex-1 relative z-10">
+                <p className="font-bold text-lg leading-tight" style={{ color: pcc.text }}>{personalName}</p>
+                <p className="text-sm mt-0.5" style={{ color: pcc.muted }}>Ghi chép chi tiêu cá nhân</p>
+              </div>
+              <div className="relative z-10 flex items-center gap-2">
+                <button onClick={e => {
+                  e.preventDefault(); e.stopPropagation()
+                  setEditPersonalNameValue(personalName); setShowEditPersonalName(true)
+                }} className="p-2 rounded-xl opacity-60 hover:opacity-100 transition-opacity" style={{ color: pcc.text }}>
+                  <Pencil size={16} />
+                </button>
+                <div className="p-2 rounded-xl" style={{ backgroundColor: pcc.iconBg, color: personalTheme }}>
+                  <ChevronRight size={18} />
+                </div>
+              </div>
+            </Link>
+          )
+        })()}
+
+        {/* ── Rooms section header ────────────────────────────── */}
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+            Phòng của bạn
+          </h2>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">{rooms.length} phòng</span>
+            {!showCreate && (
+              <button
+                onClick={() => setShowCreate(true)}
+                title="Tạo phòng mới"
+                className="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-indigo-100 hover:text-indigo-600 text-gray-400 transition-all"
+              >
+                <Plus size={16} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Create room inline form */}
+        {showCreate && (
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm mb-3">
+            <p className="font-semibold text-sm text-gray-800 mb-3">Đặt tên phòng mới</p>
             <input
-              value={roomName}
-              onChange={e => setRoomName(e.target.value)}
+              value={roomName} onChange={e => setRoomName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && createRoom()}
               placeholder="Ví dụ: Phòng 101..."
               autoFocus
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 mb-3" style={{ outlineColor: dashboardTheme }}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 mb-3"
+              style={{ outlineColor: dashboardTheme }}
             />
             <div className="flex gap-2">
               <button onClick={createRoom} disabled={creating}
-                className="flex-1 text-white py-2 rounded-xl text-sm font-medium disabled:opacity-50" style={{ backgroundColor: dashboardTheme }}>
+                className="flex-1 text-white py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
+                style={{ backgroundColor: dashboardTheme }}>
                 {creating ? 'Đang tạo...' : 'Tạo phòng'}
               </button>
               <button onClick={() => setShowCreate(false)}
@@ -192,75 +341,52 @@ function RoomsList() {
               </button>
             </div>
           </div>
-        ) : (
-          <button onClick={() => setShowCreate(true)}
-            className="w-full flex items-center justify-center gap-2 text-white py-3 rounded-2xl font-medium text-sm mb-4 transition-colors" style={{ backgroundColor: dashboardTheme }}>
-            <Plus size={18} />
-            Tạo phòng mới
-          </button>
         )}
 
-        {/* Personal expense entry */}
-        {(() => {
-          const cc = getContrastColors(personalTheme)
-          return (
-            <Link href="/personal"
-              className="flex items-center gap-3 rounded-2xl p-4 mb-4 transition-colors shadow-sm"
-              style={{ backgroundColor: personalTheme }}>
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: cc.iconBg, color: cc.text }}>
-                <BookOpen size={18} />
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold text-sm" style={{ color: cc.text }}>{personalName}</p>
-                <p className="text-xs" style={{ color: cc.muted }}>Ghi chép chi tiêu của bạn</p>
-              </div>
-              <div className="flex items-center">
-                <button onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setEditPersonalNameValue(personalName)
-                  setShowEditPersonalName(true)
-                }} className="pr-2 opacity-60 hover:opacity-100 transition-opacity" style={{ color: cc.text }}>
-                  <Pencil size={16} />
-                </button>
-              </div>
-            </Link>
-          )
-        })()}
-
-        {/* Room list */}
         {loading ? (
           <LoadingSpinner message="Đang tải phòng..." />
         ) : rooms.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
-            <Home size={40} className="mx-auto mb-2 opacity-30" />
+          <div className="text-center py-12 text-gray-300">
+            <Home size={36} className="mx-auto mb-2 opacity-40" />
             <p className="text-sm">Chưa có phòng nào</p>
           </div>
         ) : (
           <div className="space-y-3">
             {rooms.map(room => {
               const theme = roomThemes[room.id] || '#4f46e5'
-              const cc = getContrastColors(theme)
+              const rcc = getContrastColors(theme)
               return (
                 <Link key={room.id} href={`/rooms/${room.id}`}
-                  className="block bg-white rounded-2xl border border-gray-100 p-4 transition-colors"
-                  style={{ borderLeftColor: theme, borderLeftWidth: 4 }}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-                        style={{ backgroundColor: theme, color: cc.text }}>
-                        <Home size={20} />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">{room.name}</p>
-                        <p className="text-xs text-gray-400">Nhấn để xem chi tiết</p>
-                      </div>
-                    </div>
+                  className="group relative flex items-center overflow-hidden rounded-2xl shadow-sm hover:shadow-lg transition-all hover:scale-[1.01]"
+                  style={{ backgroundColor: theme }}>
+                  {/* blob */}
+                  <div className="absolute -right-6 -bottom-6 w-32 h-32 rounded-full opacity-15" style={{ backgroundColor: rcc.text }} />
+                  <div className="absolute -right-2 -top-4 w-20 h-20 rounded-full opacity-10" style={{ backgroundColor: rcc.text }} />
+
+                  {/* Icon */}
+                  <div className="flex-shrink-0 m-5 w-12 h-12 rounded-2xl flex items-center justify-center"
+                    style={{ backgroundColor: rcc.iconBg }}>
+                    <Home size={22} style={{ color: theme }} />
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 py-5 relative z-10">
+                    <p className="font-bold text-base leading-tight" style={{ color: rcc.text }}>{room.name}</p>
+                    <p className="text-xs mt-1 opacity-60" style={{ color: rcc.text }}>Nhấn để xem chi tiết</p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="relative z-10 flex items-center gap-1 mr-4">
                     {room.owner_id === currentUserId && (
-                      <button onClick={(e) => openEditRoom(e, room)} className="p-2 text-gray-300 hover:text-indigo-500 transition-colors" title="Đổi tên phòng">
-                        <Pencil size={16} />
+                      <button onClick={e => openEditRoom(e, room)}
+                        className="p-2 rounded-xl opacity-50 hover:opacity-100 transition-opacity"
+                        style={{ color: rcc.text }}>
+                        <Pencil size={15} />
                       </button>
                     )}
+                    <div className="p-1.5 opacity-60" style={{ color: rcc.text }}>
+                      <ChevronRight size={18} />
+                    </div>
                   </div>
                 </Link>
               )
@@ -269,17 +395,68 @@ function RoomsList() {
         )}
       </div>
 
-      {/* Settings Modal */}
+
+      {/* ── MOBILE MENU ─────────────────────────────────────── */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setMobileMenuOpen(false)}
+              className="fixed inset-0 z-40"
+              style={{ background: 'rgba(25,40,55,0.35)', backdropFilter: 'blur(4px)' }}
+            />
+            <motion.div
+              initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+              transition={{ ease: [0.22, 1, 0.36, 1], duration: 0.45 }}
+              className="fixed right-0 top-0 h-dvh z-50 flex flex-col"
+              style={{ width: 'min(88vw, 360px)', background: '#CFC8C5', boxShadow: '-12px 0 48px rgba(25,40,55,0.18)' }}
+            >
+              <div className="flex items-center justify-between px-6 py-5">
+                <Image src="/spendly_logo.svg" alt="Spendly" width={110} height={24} />
+                <button onClick={() => setMobileMenuOpen(false)} className="p-2 text-[#192837]">
+                  <X size={22} />
+                </button>
+              </div>
+              <div className="h-px bg-[#192837]/10 mx-6" />
+              <nav className="flex flex-col px-6 py-6 gap-1 flex-1">
+                {NAV_LINKS.map((link, i) => (
+                  <motion.button
+                    key={link}
+                    initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.18 + i * 0.07, duration: 0.35 }}
+                    className="text-left text-[#192837] font-medium py-3 text-base hover:opacity-70 transition-opacity"
+                  >
+                    {link}
+                  </motion.button>
+                ))}
+              </nav>
+              <div className="px-6 pb-8 flex flex-col gap-3">
+                <button onClick={() => { setMobileMenuOpen(false); setShowSettings(true) }}
+                  className="w-full py-3 rounded-full text-sm font-semibold text-white"
+                  style={{ background: '#7342E2' }}>
+                  Cài đặt
+                </button>
+                <button onClick={logout}
+                  className="w-full py-3 rounded-full text-sm font-semibold text-[#192837] bg-[#F2F2EE]">
+                  Đăng xuất
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── MODALS ──────────────────────────────────────────── */}
       {showSettings && (
-        <ProfileSettingsModal 
-          onClose={() => setShowSettings(false)} 
-          themeColor={dashboardTheme} 
+        <ProfileSettingsModal
+          onClose={() => setShowSettings(false)}
+          themeColor={dashboardTheme}
           currentTheme={dashboardTheme}
           onChangeTheme={handleThemeChange}
         />
       )}
 
-      {/* Edit Room Modal */}
       {editingRoomId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
           onClick={e => { if (e.target === e.currentTarget) setEditingRoomId(null) }}>
@@ -288,25 +465,19 @@ function RoomsList() {
               <h3 className="text-lg font-bold text-gray-900">Sửa tên phòng</h3>
               <button onClick={() => setEditingRoomId(null)} className="text-gray-400 hover:text-gray-600"><X size={22} /></button>
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tên phòng mới</label>
-                <input type="text" value={editRoomName} onChange={e => setEditRoomName(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && saveRoomName()}
-                  autoFocus
-                  placeholder="Ví dụ: Phòng 101..." className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              </div>
-              <button onClick={saveRoomName} disabled={savingRoom}
-                className="w-full py-3.5 rounded-xl font-semibold transition-colors disabled:opacity-50 text-white"
-                style={{ backgroundColor: dashboardTheme }}>
-                {savingRoom ? 'Đang lưu...' : 'Lưu'}
-              </button>
-            </div>
+            <input type="text" value={editRoomName} onChange={e => setEditRoomName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && saveRoomName()} autoFocus
+              placeholder="Ví dụ: Phòng 101..."
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4" />
+            <button onClick={saveRoomName} disabled={savingRoom}
+              className="w-full py-3.5 rounded-xl font-semibold text-white disabled:opacity-50"
+              style={{ backgroundColor: dashboardTheme }}>
+              {savingRoom ? 'Đang lưu...' : 'Lưu'}
+            </button>
           </div>
         </div>
       )}
 
-      {/* Edit Personal Name Modal */}
       {showEditPersonalName && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
           onClick={e => { if (e.target === e.currentTarget) setShowEditPersonalName(false) }}>
@@ -315,24 +486,19 @@ function RoomsList() {
               <h3 className="text-lg font-bold text-gray-900">Đổi tên Sổ cá nhân</h3>
               <button onClick={() => setShowEditPersonalName(false)} className="text-gray-400 hover:text-gray-600"><X size={22} /></button>
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tên sổ mới</label>
-                <input type="text" value={editPersonalNameValue} onChange={e => setEditPersonalNameValue(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && savePersonalName()}
-                  autoFocus
-                  placeholder="Ví dụ: Ví của tôi, Quỹ đen..." className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              </div>
-              <button onClick={savePersonalName}
-                className="w-full py-3.5 rounded-xl font-semibold transition-colors text-white"
-                style={{ backgroundColor: dashboardTheme }}>
-                Lưu
-              </button>
-            </div>
+            <input type="text" value={editPersonalNameValue} onChange={e => setEditPersonalNameValue(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && savePersonalName()} autoFocus
+              placeholder="Ví dụ: Ví của tôi, Quỹ đen..."
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4" />
+            <button onClick={savePersonalName}
+              className="w-full py-3.5 rounded-xl font-semibold text-white"
+              style={{ backgroundColor: dashboardTheme }}>
+              Lưu
+            </button>
           </div>
         </div>
       )}
-    </main>
+    </div>
   )
 }
 
