@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase, type PersonalLabel, type PersonalExpense } from '@/lib/supabase'
 import { format } from 'date-fns'
-import { ArrowLeft, Plus, Tag, BarChart2, ArrowUp, ArrowDown, Trash2, X, Pencil, Settings } from 'lucide-react'
+import { ArrowLeft, Plus, Tag, BarChart2, ArrowUp, ArrowDown, Trash2, X, Pencil, Settings, ChevronLeft, ChevronRight } from 'lucide-react'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { getContrastColors } from '@/lib/theme'
 import GlobalProfileHeader from '@/components/GlobalProfileHeader'
@@ -48,6 +48,8 @@ export default function PersonalPage() {
   const [filterTo, setFilterTo] = useState(defaultRange.to)
   const [sortField, setSortField] = useState<'date' | 'amount'>('date')
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
+  const [currentPage, setCurrentPage] = useState(1)
+  const PAGE_SIZE = 10
 
   const [showAdd, setShowAdd] = useState(false)
   const [addAmount, setAddAmount] = useState('')
@@ -112,16 +114,19 @@ export default function PersonalPage() {
   function handleSort(field: 'date' | 'amount') {
     const newOrder = sortField === field ? (sortOrder === 'desc' ? 'asc' : 'desc') : 'desc'
     setSortField(field); setSortOrder(newOrder)
+    setCurrentPage(1)
     fetchExpenses(filterLabel, filterFrom, filterTo, field, newOrder)
   }
 
   function handleFilterLabel(id: string) {
     setFilterLabel(id)
+    setCurrentPage(1)
     fetchExpenses(id, filterFrom, filterTo, sortField, sortOrder)
   }
 
   function handleDateChange(from: string, to: string) {
     setFilterFrom(from); setFilterTo(to)
+    setCurrentPage(1)
     fetchExpenses(filterLabel, from, to, sortField, sortOrder)
   }
 
@@ -192,6 +197,9 @@ export default function PersonalPage() {
   const totalIncome = expenses.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
   const netTotal = totalIncome - totalExpense
   const cc = getContrastColors(themeColor)
+
+  const totalPages = Math.max(1, Math.ceil(expenses.length / PAGE_SIZE))
+  const pagedExpenses = expenses.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
   if (loading) return <LoadingSpinner message="Đang tải..." fullscreen />
 
   return (
@@ -293,39 +301,96 @@ export default function PersonalPage() {
             <p className="text-sm">Chưa có khoản chi nào</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {expenses.map(exp => (
-              <div key={exp.id} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      {exp.label && (
-                        <span className="text-xs px-2 py-0.5 rounded-full font-medium text-white"
-                          style={{ backgroundColor: exp.label.color }}>
-                          {exp.label.name}
-                        </span>
-                      )}
-                      <span className="text-xs text-gray-400">{format(new Date(exp.date), 'dd/MM/yyyy')}</span>
-                    </div>
-                    <p className="font-medium text-sm text-gray-900">{exp.description}</p>
-                  </div>
-                      <div className="flex flex-col items-end gap-1.5 ml-3">
-                        <div className="flex items-center gap-2">
-                          <span className={`font-bold text-sm ${exp.type === 'income' ? 'text-emerald-600' : 'text-gray-900'}`}>
-                            {exp.type === 'income' ? '+' : '-'}{formatMoney(exp.amount)}
+          <>
+            <div className="space-y-2">
+              {pagedExpenses.map(exp => (
+                <div key={exp.id} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        {exp.label && (
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium text-white"
+                            style={{ backgroundColor: exp.label.color }}>
+                            {exp.label.name}
                           </span>
-                          <button onClick={() => openEdit(exp)} className="text-gray-300 hover:text-indigo-400">
-                            <Pencil size={16} />
-                          </button>
-                          <button onClick={() => setDeleteId(exp.id)} className="text-gray-300 hover:text-red-400">
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
+                        )}
+                        <span className="text-xs text-gray-400">{format(new Date(exp.date), 'dd/MM/yyyy')}</span>
+                      </div>
+                      <p className="font-medium text-sm text-gray-900">{exp.description}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5 ml-3">
+                      <div className="flex items-center gap-2">
+                        <span className={`font-bold text-sm ${exp.type === 'income' ? 'text-emerald-600' : 'text-gray-900'}`}>
+                          {exp.type === 'income' ? '+' : '-'}{formatMoney(exp.amount)}
+                        </span>
+                        <button onClick={() => openEdit(exp)} className="text-gray-300 hover:text-indigo-400">
+                          <Pencil size={16} />
+                        </button>
+                        <button onClick={() => setDeleteId(exp.id)} className="text-gray-300 hover:text-red-400">
+                          <Trash2 size={16} />
+                        </button>
                       </div>
                     </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-1.5 mt-5 pt-4 border-t border-gray-100">
+                {/* Prev */}
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage <= 1}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 bg-white border border-gray-200 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 hover:border-indigo-300 transition-colors"
+                >
+                  <ChevronLeft size={15} />
+                </button>
+
+                {/* Page numbers with ellipsis */}
+                {(() => {
+                  const pages: (number | '...')[] = []
+                  if (totalPages <= 7) {
+                    for (let p = 1; p <= totalPages; p++) pages.push(p)
+                  } else {
+                    pages.push(1)
+                    if (currentPage > 3) pages.push('...')
+                    for (let p = Math.max(2, currentPage - 1); p <= Math.min(totalPages - 1, currentPage + 1); p++) pages.push(p)
+                    if (currentPage < totalPages - 2) pages.push('...')
+                    pages.push(totalPages)
+                  }
+                  return pages.map((p, i) =>
+                    p === '...' ? (
+                      <span key={`ellipsis-${i}`} className="w-8 h-8 flex items-center justify-center text-gray-400 text-sm">…</span>
+                    ) : (
+                      <button
+                        key={p}
+                        onClick={() => setCurrentPage(p as number)}
+                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+                          p === currentPage
+                            ? 'text-white shadow-sm'
+                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600'
+                        }`}
+                        style={p === currentPage ? { backgroundColor: themeColor } : {}}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )
+                })()}
+
+                {/* Next */}
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 bg-white border border-gray-200 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 hover:border-indigo-300 transition-colors"
+                >
+                  <ChevronRight size={15} />
+                </button>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
 
