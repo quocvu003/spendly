@@ -85,14 +85,14 @@ function GoalRow({ item }: { item: GoalProgress }) {
   const color = BAR_COLOR[status]
 
   let note: React.ReactNode
-  if (status === 'over') note = <span className="text-rose-300">vượt {formatMoney(-remaining)}</span>
+  if (status === 'over') note = <span className="text-rose-300">Vượt {formatMoney(-remaining)}</span>
   else if (status === 'done') note = (
     <span className="inline-flex items-center gap-1 text-emerald-300">
-      <Check size={13} /> đạt{remaining < 0 ? `, hơn ${formatMoney(-remaining)}` : ''}
+      <Check size={13} /> Đạt{remaining < 0 ? `, hơn ${formatMoney(-remaining)}` : ''}
     </span>
   )
-  else if (isLimit) note = <span className={status === 'warn' ? 'text-amber-300' : 'text-[#f5efe2]/60'}>còn {formatMoney(remaining)}</span>
-  else note = <span className="text-[#f5efe2]/60">cần thêm {formatMoney(remaining)}</span>
+  else if (isLimit) note = <span className={status === 'warn' ? 'text-amber-300' : 'text-[#f5efe2]/60'}>Còn {formatMoney(remaining)}</span>
+  else note = <span className="text-[#f5efe2]/60">Cần thêm {formatMoney(remaining)}</span>
 
   return (
     <li className="px-5 py-4 sm:px-6">
