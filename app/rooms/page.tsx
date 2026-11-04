@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState, Suspense, useRef } from 'react'
-import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase, type Room } from '@/lib/supabase'
@@ -11,17 +10,12 @@ import {
   readCachedTheme, claimThemeCache, resolveTheme,
   saveDashboardTheme, syncPersonalTheme, uploadRoomThemes,
 } from '@/lib/themeStore'
-import {
-  Plus, LogOut, Home, BookOpen, ChevronRight, Settings, X, Pencil,
-  Menu, ArrowRightCircle, BarChart2, Wallet, Users,
-} from 'lucide-react'
-import LoadingSpinner from '@/components/LoadingSpinner'
-import { getContrastColors } from '@/lib/theme'
-import GlobalProfileHeader from '@/components/GlobalProfileHeader'
+import { Plus, Home, BookOpen, X, Pencil, Menu, ArrowDown, ArrowRight } from 'lucide-react'
+import { getContrastColors, getGlowColors } from '@/lib/theme'
+import PulsatingBorder from '@/components/PulsatingBorder'
+import NightFlowerField from '@/components/NightFlowerField'
 import ProfileSettingsModal from '@/components/ProfileSettingsModal'
 import { motion, AnimatePresence } from 'framer-motion'
-
-const NAV_LINKS = ['Tổng quan', 'Phòng chi tiêu', 'Cá nhân', 'Báo cáo', 'Trợ giúp']
 
 const fadeUp = (delay = 0) => ({
   hidden: { opacity: 0, y: 28 },
@@ -198,309 +192,253 @@ function RoomsList() {
   }
 
   const cc = getContrastColors(dashboardTheme)
+  const scrollToList = () => listRef.current?.scrollIntoView({ behavior: 'smooth' })
 
   return (
-    <div className="min-h-screen bg-[#F2F2EE]" style={{ fontFamily: "'Inter', sans-serif" }}>
+    // overflow-x-clip: quầng sáng của card tràn ra ngoài, không để nó tạo thanh cuộn ngang
+    <div className="min-h-screen bg-[#04050b] text-[#f5efe2] overflow-x-clip">
 
-      {/* ── HERO SECTION ─────────────────────────────────────── */}
-      <div className="relative w-full min-h-screen overflow-hidden">
-        {/* Video background */}
-        <video
-          autoPlay muted loop playsInline
-          className="absolute inset-0 w-full h-full object-cover"
-          src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260518_003132_8b7edcb6-c64d-4a52-a9ca-879942e122ad.mp4"
-        />
-        {/* Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-[#F2F2EE]" />
+      {/* Nền thung lũng hoa đêm: cố định sau toàn trang, cuộn trang thì camera bay tới */}
+      <NightFlowerField />
 
-        {/* ── NAVBAR ───────────────────────────────────────────── */}
-        <nav className="relative z-10 w-full">
-          <div className="max-w-7xl mx-auto px-5 sm:px-8 py-4 sm:py-5 flex items-center justify-between">
-            {/* Logo */}
-            <div className="flex items-center gap-2.5">
-              <Image src="/spendly_logo.svg" alt="Spendly" width={130} height={28} priority />
-            </div>
+      {/* ── HERO ─────────────────────────────────────────────── */}
+      <section className="relative z-10 flex min-h-[100svh] flex-col">
+        <header className="flex items-center justify-between px-5 pt-5 sm:px-10 sm:pt-7">
+          <Wordmark />
 
-            {/* Desktop nav links */}
-            <div className="hidden md:flex items-center gap-7">
-              {NAV_LINKS.map(link => (
-                <button key={link} className="text-sm font-medium text-white/90 hover:text-white transition-opacity">
-                  {link}
-                </button>
-              ))}
-            </div>
-
-            {/* Desktop right buttons */}
-            <div className="hidden md:flex items-center gap-2">
-              <button
-                onClick={() => setShowSettings(true)}
-                className="px-5 py-2.5 rounded-full text-sm font-semibold bg-[#7342E2] text-white hover:brightness-110 transition-all"
-              >
-                Cài đặt
-              </button>
-              <button
-                onClick={logout}
-                className="px-5 py-2.5 rounded-full text-sm font-semibold bg-[#F2F2EE] text-[#192837] hover:bg-white transition-all"
-              >
-                Đăng xuất
-              </button>
-            </div>
-
-            {/* Mobile hamburger */}
+          <div className="hidden items-center gap-6 md:flex">
             <button
-              onClick={() => setMobileMenuOpen(true)}
-              className="md:hidden p-2 rounded-xl text-white"
+              onClick={() => setShowSettings(true)}
+              className="text-[13px] font-semibold uppercase tracking-[0.16em] text-[#f5efe2]/80 transition-opacity hover:opacity-60"
             >
-              <Menu size={24} />
+              Cài đặt
+            </button>
+            <button
+              onClick={logout}
+              className="inline-flex h-11 items-center rounded-full bg-[#f5efe2] px-6 text-sm font-semibold text-[#151510] transition-transform hover:-translate-y-px"
+            >
+              Đăng xuất
             </button>
           </div>
-        </nav>
 
-        {/* ── HERO CONTENT ─────────────────────────────────────── */}
-        <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-8" style={{ paddingTop: 'clamp(40px, 8vw, 72px)' }}>
-          <div style={{ maxWidth: 620 }}>
-            <motion.p
-              variants={fadeUp(0)} initial="hidden" animate="visible"
-              className="text-white/70 text-sm font-medium mb-2 tracking-wide uppercase"
-            >
-              Chào mừng trở lại
-            </motion.p>
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Mở menu"
+            className="rounded-xl p-2 text-[#f5efe2] md:hidden"
+          >
+            <Menu size={24} />
+          </button>
+        </header>
 
-            <motion.h1
-              variants={fadeUp(0.1)} initial="hidden" animate="visible"
-              className="font-black text-white leading-[1.05] tracking-tight"
-              style={{ fontSize: 'clamp(2rem, 6vw, 3.5rem)', fontFamily: 'Inter, sans-serif', fontWeight: 900, marginBottom: '6px' }}
-            >
-              {displayName ? <>{displayName} <span className="text-white/40">👋</span></> : 'Bảng điều khiển'}
-            </motion.h1>
+        <div className="relative flex flex-1 flex-col items-center justify-center px-5 pb-28 text-center">
+          {/* Lớp tối mờ sau khối chữ để chữ luôn đọc được trên nền hoa */}
+          <div aria-hidden className="pointer-events-none absolute left-1/2 top-[45%] -z-10 h-[70%] w-[min(1100px,120%)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(3,4,10,0.82),rgba(3,4,10,0.55)_55%,transparent)]" />
+          <motion.p
+            variants={fadeUp(0)} initial="hidden" animate="visible"
+            className="mb-5 flex max-w-full items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#f5efe2]/70 sm:text-sm"
+          >
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: dashboardTheme }} />
+            {/* Tên dài: cắt bằng dấu … thay vì tràn ra ngoài màn hình */}
+            <span className="min-w-0 truncate">
+              {displayName ? `Chào mừng trở lại, ${displayName}` : 'Chào mừng trở lại'}
+            </span>
+          </motion.p>
 
-            <motion.p
-              variants={fadeUp(0.18)} initial="hidden" animate="visible"
-              className="text-white/60 mb-6"
-              style={{
-                fontFamily: 'Inter, sans-serif',
-                fontStyle: 'normal',
-                fontWeight: 300,
-                fontSize: 'clamp(0.85rem, 2.2vw, 1.15rem)',
-                letterSpacing: '0.18em',
-                textTransform: 'uppercase',
-                lineHeight: 1.5,
-              }}
-            >
-              Tiết kiệm hôm nay, tích lũy tương lai
-            </motion.p>
+          <motion.h1
+            variants={fadeUp(0.1)} initial="hidden" animate="visible"
+            className="max-w-5xl font-extrabold leading-[0.98] tracking-[-0.035em]"
+            style={{ fontSize: 'clamp(2.75rem, 8vw, 6.5rem)' }}
+          >
+            Tiết kiệm hôm nay,
+            <br />
+            <span className="text-[#f5efe2]/75">tích luỹ tương lai.</span>
+          </motion.h1>
 
-            <motion.div
-              variants={fadeUp(0.2)} initial="hidden" animate="visible"
-              className="flex flex-wrap gap-3 mb-8"
-            >
-              <div className="flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-2xl px-4 py-2.5">
-                <Home size={16} className="text-white/80" />
-                <span className="text-white text-sm font-medium">{rooms.length} phòng</span>
-              </div>
-              <div className="flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-2xl px-4 py-2.5">
-                <Wallet size={16} className="text-white/80" />
-                <span className="text-white text-sm font-medium">{personalName}</span>
-              </div>
-            </motion.div>
+          <motion.p
+            variants={fadeUp(0.2)} initial="hidden" animate="visible"
+            className="mt-8 max-w-md break-words text-base leading-relaxed text-[#f5efe2]/70 [overflow-wrap:anywhere] sm:text-lg"
+          >
+            {loading
+              ? 'Đang chuẩn bị không gian của bạn…'
+              : `${rooms.length} phòng chi tiêu chung · ${personalName}`}
+          </motion.p>
 
-            <motion.div variants={fadeUp(0.30)} initial="hidden" animate="visible">
-              <button
-                onClick={() => listRef.current?.scrollIntoView({ behavior: 'smooth' })}
-                className="flex items-center justify-between gap-8 rounded-full text-white font-semibold transition-all hover:scale-[1.04] hover:brightness-110 active:scale-[0.96]"
-                style={{
-                  background: '#7342E2',
-                  padding: '17px 24px',
-                  fontSize: 'clamp(0.9rem, 2vw, 1rem)',
-                  boxShadow: '0 4px 24px rgba(115,66,226,0.28)',
-                  minWidth: 210,
-                }}
-              >
-                Xem danh sách
-                <ArrowRightCircle size={20} />
-              </button>
-            </motion.div>
-          </div>
+          <motion.button
+            variants={fadeUp(0.3)} initial="hidden" animate="visible"
+            onClick={scrollToList}
+            aria-label="Xem danh sách"
+            className="mt-9 grid h-14 w-14 place-items-center rounded-full border-[1.5px] border-[#f5efe2] text-[#f5efe2] transition-colors duration-300 hover:bg-[#f5efe2] hover:text-[#151510]"
+          >
+            <ArrowDown size={22} strokeWidth={1.6} />
+          </motion.button>
         </div>
-      </div>
 
-      {/* ── ROOM LIST SECTION ────────────────────────────────── */}
-      <div ref={listRef} className="max-w-2xl mx-auto px-4 pb-16 -mt-10 relative z-10">
+        <div className="absolute bottom-8 left-5 right-5 flex items-center justify-center gap-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#f5efe2]/60 sm:left-auto sm:right-10 sm:justify-end">
+          <span>Cuộn để khám phá</span>
+          <i className="h-6 w-px bg-[#f5efe2]/40" />
+          <span>{rooms.length.toString().padStart(2, '0')} phòng</span>
+        </div>
+      </section>
 
-        {/* ── Featured: Personal Notebook ─────────────────────── */}
-        {(() => {
-          const pcc = getContrastColors(personalTheme)
-          return (
-            <Link href="/personal"
-              className="group relative flex items-center overflow-hidden rounded-3xl p-6 mb-4 shadow-xl transition-all hover:scale-[1.01] hover:shadow-2xl"
-              style={{ backgroundColor: personalTheme }}>
-              {/* decorative blobs */}
-              <div className="absolute -right-8 -top-8 w-36 h-36 rounded-full opacity-20" style={{ backgroundColor: pcc.text }} />
-              <div className="absolute -right-2 -bottom-6 w-24 h-24 rounded-full opacity-10" style={{ backgroundColor: pcc.text }} />
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 mr-5"
-                style={{ backgroundColor: pcc.iconBg }}>
-                <BookOpen size={24} style={{ color: personalTheme }} />
+      {/* ── KHÔNG GIAN CỦA BẠN ───────────────────────────────── */}
+      <section ref={listRef} className="relative z-10 mx-auto max-w-5xl scroll-mt-8 px-5 pb-28 pt-10 sm:px-8">
+        <div className="mb-10 flex items-end justify-between gap-4">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#f5efe2]/50">Không gian của bạn</p>
+            <h2 className="text-3xl font-extrabold tracking-[-0.03em] sm:text-5xl">Sổ &amp; phòng chi tiêu</h2>
+          </div>
+          <p className="hidden pb-2 text-sm text-[#f5efe2]/50 sm:block">
+            {loading ? '…' : `${rooms.length} phòng`}
+          </p>
+        </div>
+
+        {/* grid-cols-1 + min-w-0 ở từng card: không để tên dài kéo giãn card rộng hơn màn hình */}
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {/* Sổ cá nhân: thẻ nổi bật, chiếm hết bề ngang */}
+          <GlowCard theme={personalTheme} className="md:col-span-2">
+            <Link href="/personal" className="relative z-10 flex min-h-[200px] flex-col justify-between gap-8 p-7 sm:flex-row sm:items-end sm:p-9">
+              <div className="min-w-0">
+                <IconTile theme={personalTheme}><BookOpen size={22} /></IconTile>
+                <p className="mt-6 text-xs font-semibold uppercase tracking-[0.2em] text-[#f5efe2]/50">Cá nhân</p>
+                <div className="mt-1 flex items-start gap-2">
+                  {/* Tên dài: xuống dòng, tối đa 2 dòng rồi cắt bằng … */}
+                  <h3 className="line-clamp-2 min-w-0 text-3xl font-extrabold tracking-[-0.03em] [overflow-wrap:anywhere] sm:text-4xl">{personalName}</h3>
+                  <button
+                    onClick={e => {
+                      e.preventDefault(); e.stopPropagation()
+                      setEditPersonalNameValue(personalName); setShowEditPersonalName(true)
+                    }}
+                    aria-label="Đổi tên Sổ cá nhân"
+                    className="rounded-lg p-1.5 text-[#f5efe2]/40 transition-colors hover:bg-white/10 hover:text-[#f5efe2]"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                </div>
+                <p className="mt-2 max-w-sm text-sm text-[#f5efe2]/60">Ghi chép thu chi của riêng bạn, theo nhãn và theo tháng.</p>
               </div>
-              <div className="flex-1 relative z-10">
-                <p className="font-bold text-lg leading-tight" style={{ color: pcc.text }}>{personalName}</p>
-                <p className="text-sm mt-0.5" style={{ color: pcc.muted }}>Ghi chép chi tiêu cá nhân</p>
-              </div>
-              <div className="relative z-10 flex items-center gap-2">
-                <button onClick={e => {
-                  e.preventDefault(); e.stopPropagation()
-                  setEditPersonalNameValue(personalName); setShowEditPersonalName(true)
-                }} className="p-2 rounded-xl opacity-60 hover:opacity-100 transition-opacity" style={{ color: pcc.text }}>
-                  <Pencil size={16} />
-                </button>
-                <div className="p-2 rounded-xl" style={{ backgroundColor: pcc.iconBg, color: personalTheme }}>
-                  <ChevronRight size={18} />
+              <ArrowCircle />
+            </Link>
+          </GlowCard>
+
+          {/* Các phòng */}
+          {loading
+            ? [0, 1].map(i => (
+                <div key={i} className="h-[190px] animate-pulse rounded-3xl border border-white/10 bg-white/[0.04]" />
+              ))
+            : rooms.map(room => {
+                const theme = roomThemes[room.id] || THEME_DEFAULTS.room
+                const isOwner = room.owner_id === currentUserId
+                return (
+                  <GlowCard key={room.id} theme={theme}>
+                    <Link href={`/rooms/${room.id}`} className="relative z-10 flex min-h-[190px] flex-col justify-between p-7">
+                      <div className="flex items-start justify-between">
+                        <IconTile theme={theme}><Home size={20} /></IconTile>
+                        {isOwner && (
+                          <button
+                            onClick={e => openEditRoom(e, room)}
+                            aria-label="Sửa tên phòng"
+                            className="rounded-lg p-1.5 text-[#f5efe2]/40 transition-colors hover:bg-white/10 hover:text-[#f5efe2]"
+                          >
+                            <Pencil size={15} />
+                          </button>
+                        )}
+                      </div>
+                      <div className="mt-8 flex items-end justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#f5efe2]/50">
+                            {isOwner ? 'Chủ phòng' : 'Thành viên'}
+                          </p>
+                          <h3 className="line-clamp-2 text-2xl font-extrabold tracking-[-0.03em] [overflow-wrap:anywhere]">{room.name}</h3>
+                        </div>
+                        <ArrowCircle small />
+                      </div>
+                    </Link>
+                  </GlowCard>
+                )
+              })}
+
+          {/* Tạo phòng mới */}
+          <div className={`flex min-h-[190px] flex-col rounded-3xl border border-dashed p-7 transition-colors ${
+            showCreate ? 'border-white/30 bg-[#0b0f1f]/85' : 'border-white/20 bg-[#0b0f1f]/75 hover:border-white/40'
+          }`}>
+            {showCreate ? (
+              <div className="flex flex-1 flex-col">
+                <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-[#f5efe2]/50">Phòng mới</p>
+                <input
+                  value={roomName}
+                  onChange={e => setRoomName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') createRoom(); if (e.key === 'Escape') setShowCreate(false) }}
+                  placeholder="Ví dụ: Phòng 101"
+                  autoFocus
+                  className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-base text-[#f5efe2] placeholder:text-[#f5efe2]/35 focus:border-white/40 focus:outline-none"
+                />
+                <div className="mt-auto flex gap-2 pt-4">
+                  <button
+                    onClick={createRoom}
+                    disabled={creating || !roomName.trim()}
+                    className="flex-1 rounded-full py-2.5 text-sm font-semibold transition-opacity disabled:opacity-40"
+                    style={{ backgroundColor: dashboardTheme, color: cc.text }}
+                  >
+                    {creating ? 'Đang tạo…' : 'Tạo phòng'}
+                  </button>
+                  <button
+                    onClick={() => { setShowCreate(false); setRoomName('') }}
+                    className="rounded-full border border-white/20 px-5 py-2.5 text-sm font-semibold text-[#f5efe2]/80 hover:bg-white/10"
+                  >
+                    Huỷ
+                  </button>
                 </div>
               </div>
-            </Link>
-          )
-        })()}
-
-        {/* ── Rooms section header ────────────────────────────── */}
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-            Phòng của bạn
-          </h2>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400">{rooms.length} phòng</span>
-            {!showCreate && (
-              <button
-                onClick={() => setShowCreate(true)}
-                title="Tạo phòng mới"
-                className="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-indigo-100 hover:text-indigo-600 text-gray-400 transition-all"
-              >
-                <Plus size={16} />
+            ) : (
+              <button onClick={() => setShowCreate(true)} className="flex flex-1 flex-col items-start justify-between text-left">
+                <span className="grid h-12 w-12 place-items-center rounded-2xl border border-white/20 text-[#f5efe2]/80">
+                  <Plus size={22} />
+                </span>
+                <span>
+                  <span className="block text-2xl font-extrabold tracking-[-0.03em]">Tạo phòng mới</span>
+                  <span className="mt-1 block text-sm text-[#f5efe2]/55">
+                    {!loading && rooms.length === 0
+                      ? 'Bạn chưa có phòng nào. Tạo phòng đầu tiên để chia sẻ chi tiêu.'
+                      : 'Chia sẻ chi tiêu với bạn cùng phòng.'}
+                  </span>
+                </span>
               </button>
             )}
           </div>
         </div>
+      </section>
 
-        {/* Create room inline form */}
-        {showCreate && (
-          <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm mb-3">
-            <p className="font-semibold text-sm text-gray-800 mb-3">Đặt tên phòng mới</p>
-            <input
-              value={roomName} onChange={e => setRoomName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && createRoom()}
-              placeholder="Ví dụ: Phòng 101..."
-              autoFocus
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 mb-3"
-              style={{ outlineColor: dashboardTheme }}
-            />
-            <div className="flex gap-2">
-              <button onClick={createRoom} disabled={creating}
-                className="flex-1 text-white py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
-                style={{ backgroundColor: dashboardTheme }}>
-                {creating ? 'Đang tạo...' : 'Tạo phòng'}
-              </button>
-              <button onClick={() => setShowCreate(false)}
-                className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-xl text-sm font-medium">
-                Huỷ
-              </button>
-            </div>
-          </div>
-        )}
-
-        {loading ? (
-          <LoadingSpinner message="Đang tải phòng..." />
-        ) : rooms.length === 0 ? (
-          <div className="text-center py-12 text-gray-300">
-            <Home size={36} className="mx-auto mb-2 opacity-40" />
-            <p className="text-sm">Chưa có phòng nào</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {rooms.map(room => {
-              const theme = roomThemes[room.id] || '#4f46e5'
-              const rcc = getContrastColors(theme)
-              return (
-                <Link key={room.id} href={`/rooms/${room.id}`}
-                  className="group relative flex items-center overflow-hidden rounded-2xl shadow-sm hover:shadow-lg transition-all hover:scale-[1.01]"
-                  style={{ backgroundColor: theme }}>
-                  {/* blob */}
-                  <div className="absolute -right-6 -bottom-6 w-32 h-32 rounded-full opacity-15" style={{ backgroundColor: rcc.text }} />
-                  <div className="absolute -right-2 -top-4 w-20 h-20 rounded-full opacity-10" style={{ backgroundColor: rcc.text }} />
-
-                  {/* Icon */}
-                  <div className="flex-shrink-0 m-5 w-12 h-12 rounded-2xl flex items-center justify-center"
-                    style={{ backgroundColor: rcc.iconBg }}>
-                    <Home size={22} style={{ color: theme }} />
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 py-5 relative z-10">
-                    <p className="font-bold text-base leading-tight" style={{ color: rcc.text }}>{room.name}</p>
-                    <p className="text-xs mt-1 opacity-60" style={{ color: rcc.text }}>Nhấn để xem chi tiết</p>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="relative z-10 flex items-center gap-1 mr-4">
-                    {room.owner_id === currentUserId && (
-                      <button onClick={e => openEditRoom(e, room)}
-                        className="p-2 rounded-xl opacity-50 hover:opacity-100 transition-opacity"
-                        style={{ color: rcc.text }}>
-                        <Pencil size={15} />
-                      </button>
-                    )}
-                    <div className="p-1.5 opacity-60" style={{ color: rcc.text }}>
-                      <ChevronRight size={18} />
-                    </div>
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-
-      {/* ── MOBILE MENU ─────────────────────────────────────── */}
+      {/* ── MENU ĐIỆN THOẠI ──────────────────────────────────── */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <>
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setMobileMenuOpen(false)}
-              className="fixed inset-0 z-40"
-              style={{ background: 'rgba(25,40,55,0.35)', backdropFilter: 'blur(4px)' }}
+              className="fixed inset-0 z-40 bg-black/50"
             />
             <motion.div
               initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
               transition={{ ease: [0.22, 1, 0.36, 1], duration: 0.45 }}
-              className="fixed right-0 top-0 h-dvh z-50 flex flex-col"
-              style={{ width: 'min(88vw, 360px)', background: '#CFC8C5', boxShadow: '-12px 0 48px rgba(25,40,55,0.18)' }}
+              className="fixed right-0 top-0 z-50 flex h-dvh flex-col border-l border-white/10 bg-[#0a0d1a]"
+              style={{ width: 'min(88vw, 360px)' }}
             >
               <div className="flex items-center justify-between px-6 py-5">
-                <Image src="/spendly_logo.svg" alt="Spendly" width={110} height={24} />
-                <button onClick={() => setMobileMenuOpen(false)} className="p-2 text-[#192837]">
+                <Wordmark />
+                <button onClick={() => setMobileMenuOpen(false)} aria-label="Đóng menu" className="p-2 text-[#f5efe2]">
                   <X size={22} />
                 </button>
               </div>
-              <div className="h-px bg-[#192837]/10 mx-6" />
-              <nav className="flex flex-col px-6 py-6 gap-1 flex-1">
-                {NAV_LINKS.map((link, i) => (
-                  <motion.button
-                    key={link}
-                    initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.18 + i * 0.07, duration: 0.35 }}
-                    className="text-left text-[#192837] font-medium py-3 text-base hover:opacity-70 transition-opacity"
-                  >
-                    {link}
-                  </motion.button>
-                ))}
-              </nav>
-              <div className="px-6 pb-8 flex flex-col gap-3">
-                <button onClick={() => { setMobileMenuOpen(false); setShowSettings(true) }}
-                  className="w-full py-3 rounded-full text-sm font-semibold text-white"
-                  style={{ background: '#7342E2' }}>
+              <div className="mx-6 h-px bg-white/10" />
+              <div className="flex-1" />
+              <div className="flex flex-col gap-3 px-6 pb-8">
+                <button
+                  onClick={() => { setMobileMenuOpen(false); setShowSettings(true) }}
+                  className="w-full rounded-full border border-white/20 py-3 text-sm font-semibold text-[#f5efe2]"
+                >
                   Cài đặt
                 </button>
-                <button onClick={logout}
-                  className="w-full py-3 rounded-full text-sm font-semibold text-[#192837] bg-[#F2F2EE]">
+                <button onClick={logout} className="w-full rounded-full bg-[#f5efe2] py-3 text-sm font-semibold text-[#151510]">
                   Đăng xuất
                 </button>
               </div>
@@ -509,7 +447,7 @@ function RoomsList() {
         )}
       </AnimatePresence>
 
-      {/* ── MODALS ──────────────────────────────────────────── */}
+      {/* ── POPUP ────────────────────────────────────────────── */}
       {showSettings && (
         <ProfileSettingsModal
           onClose={() => setShowSettings(false)}
@@ -520,53 +458,116 @@ function RoomsList() {
       )}
 
       {editingRoomId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-          onClick={e => { if (e.target === e.currentTarget) setEditingRoomId(null) }}>
-          <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-bold text-gray-900">Sửa tên phòng</h3>
-              <button onClick={() => setEditingRoomId(null)} className="text-gray-400 hover:text-gray-600"><X size={22} /></button>
-            </div>
-            <input type="text" value={editRoomName} onChange={e => setEditRoomName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && saveRoomName()} autoFocus
-              placeholder="Ví dụ: Phòng 101..."
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4" />
-            <button onClick={saveRoomName} disabled={savingRoom}
-              className="w-full py-3.5 rounded-xl font-semibold text-white disabled:opacity-50"
-              style={{ backgroundColor: dashboardTheme }}>
-              {savingRoom ? 'Đang lưu...' : 'Lưu'}
-            </button>
-          </div>
-        </div>
+        <DarkModal title="Sửa tên phòng" onClose={() => setEditingRoomId(null)}>
+          <input
+            type="text" value={editRoomName} onChange={e => setEditRoomName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && saveRoomName()} autoFocus
+            placeholder="Ví dụ: Phòng 101"
+            className="mb-4 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-base text-[#f5efe2] placeholder:text-[#f5efe2]/35 focus:border-white/40 focus:outline-none"
+          />
+          <button
+            onClick={saveRoomName} disabled={savingRoom}
+            className="w-full rounded-full py-3.5 font-semibold disabled:opacity-50"
+            style={{ backgroundColor: dashboardTheme, color: cc.text }}
+          >
+            {savingRoom ? 'Đang lưu…' : 'Lưu'}
+          </button>
+        </DarkModal>
       )}
 
       {showEditPersonalName && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-          onClick={e => { if (e.target === e.currentTarget) setShowEditPersonalName(false) }}>
-          <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-bold text-gray-900">Đổi tên Sổ cá nhân</h3>
-              <button onClick={() => setShowEditPersonalName(false)} className="text-gray-400 hover:text-gray-600"><X size={22} /></button>
-            </div>
-            <input type="text" value={editPersonalNameValue} onChange={e => setEditPersonalNameValue(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && savePersonalName()} autoFocus
-              placeholder="Ví dụ: Ví của tôi, Quỹ đen..."
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4" />
-            <button onClick={savePersonalName}
-              className="w-full py-3.5 rounded-xl font-semibold text-white"
-              style={{ backgroundColor: dashboardTheme }}>
-              Lưu
-            </button>
-          </div>
-        </div>
+        <DarkModal title="Đổi tên Sổ cá nhân" onClose={() => setShowEditPersonalName(false)}>
+          <input
+            type="text" value={editPersonalNameValue} onChange={e => setEditPersonalNameValue(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && savePersonalName()} autoFocus
+            placeholder="Ví dụ: Ví của tôi, Quỹ đen…"
+            className="mb-4 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-base text-[#f5efe2] placeholder:text-[#f5efe2]/35 focus:border-white/40 focus:outline-none"
+          />
+          <button
+            onClick={savePersonalName}
+            className="w-full rounded-full py-3.5 font-semibold"
+            style={{ backgroundColor: dashboardTheme, color: cc.text }}
+          >
+            Lưu
+          </button>
+        </DarkModal>
       )}
+    </div>
+  )
+}
+
+// ── Thành phần giao diện dùng trong trang ──────────────────────────────────
+
+function Wordmark() {
+  return (
+    <span className="flex items-center gap-2.5">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/icon.svg" alt="" width={30} height={30} />
+      <span className="text-xl font-bold tracking-[-0.02em] text-[#f5efe2]">
+        Spend<span className="text-[#ffc4a4]">ly</span>
+      </span>
+    </span>
+  )
+}
+
+/** Card nền tối, ánh màu chủ đề ở góc, viền phát sáng chuyển động phía sau */
+function GlowCard({ theme, className = '', children }: { theme: string; className?: string; children: React.ReactNode }) {
+  return (
+    <div className={`group relative min-w-0 transition-transform duration-300 hover:-translate-y-1 ${className}`}>
+      <PulsatingBorder colors={getGlowColors(theme)} cornerRadius={24} />
+      <div
+        className="relative z-10 h-full overflow-hidden rounded-3xl border border-white/10 bg-[#0b0f1f]/[0.92]"
+        style={{ backgroundImage: `radial-gradient(120% 90% at 0% 0%, ${theme}33 0%, transparent 55%)` }}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function IconTile({ theme, children }: { theme: string; children: React.ReactNode }) {
+  return (
+    <span
+      className="grid h-12 w-12 place-items-center rounded-2xl"
+      style={{ backgroundColor: theme, color: getContrastColors(theme).text, boxShadow: `0 8px 24px ${theme}55` }}
+    >
+      {children}
+    </span>
+  )
+}
+
+function ArrowCircle({ small = false }: { small?: boolean }) {
+  return (
+    <span
+      className={`grid shrink-0 place-items-center rounded-full border-[1.5px] border-[#f5efe2]/70 text-[#f5efe2] transition-colors duration-300 group-hover:border-[#f5efe2] group-hover:bg-[#f5efe2] group-hover:text-[#151510] ${
+        small ? 'h-11 w-11' : 'h-14 w-14'
+      }`}
+    >
+      <ArrowRight size={small ? 18 : 22} strokeWidth={1.6} />
+    </span>
+  )
+}
+
+function DarkModal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0e1324] p-6 text-[#f5efe2] shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="mb-5 flex items-center justify-between">
+          <h3 className="text-lg font-bold">{title}</h3>
+          <button onClick={onClose} aria-label="Đóng" className="text-[#f5efe2]/50 hover:text-[#f5efe2]"><X size={22} /></button>
+        </div>
+        {children}
+      </div>
     </div>
   )
 }
 
 export default function RoomsPage() {
   return (
-    <Suspense fallback={<LoadingSpinner message="Đang tải Spendly..." fullscreen />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#04050b]" />}>
       <RoomsList />
     </Suspense>
   )

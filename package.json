@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@paper-design/shaders-react": "0.0.61",
     "@supabase/supabase-js": "^2.44.4",
     "date-fns": "^3.6.0",
     "framer-motion": "^12.40.0",
