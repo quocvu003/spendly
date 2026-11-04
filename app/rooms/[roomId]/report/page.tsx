@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase, type Settlement, type Transaction } from '@/lib/supabase'
+import { THEME_DEFAULTS, roomThemeKey, readCachedTheme, claimThemeCache, syncRoomTheme } from '@/lib/themeStore'
 import { authFetch } from '@/lib/authFetch'
 import { format } from 'date-fns'
 import { ArrowLeft, History, FileText, ChevronRight, Calculator, User, ArrowRight } from 'lucide-react'
@@ -27,7 +28,7 @@ export default function ReportPage() {
   const [themeColor, setThemeColor] = useState('#4f46e5')
 
   useEffect(() => {
-    const saved = localStorage.getItem(`spendly_room_theme_${roomId}`)
+    const saved = readCachedTheme(roomThemeKey(roomId))
     if (saved) setThemeColor(saved)
   }, [roomId])
   
@@ -43,13 +44,18 @@ export default function ReportPage() {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
     if (!user) { router.push('/'); return }
+    if (!claimThemeCache(user.id)) setThemeColor(THEME_DEFAULTS.room)
 
     const [{ data: roomData }, { data: settleData }] = await Promise.all([
-      supabase.from('rooms').select('name').eq('id', roomId).single(),
+      // Kèm màu phòng của chính mình (RLS chỉ trả về dòng của người đang đăng nhập)
+      supabase.from('rooms').select('name, user_room_themes(color)').eq('id', roomId).single(),
       supabase.from('settlements').select('*').eq('room_id', roomId).order('created_at', { ascending: false }),
     ])
 
-    if (roomData) setRoomName(roomData.name)
+    if (roomData) {
+      setRoomName(roomData.name)
+      syncRoomTheme(user.id, roomId, (roomData.user_room_themes as { color: string }[] | null)?.[0]?.color, setThemeColor)
+    }
     if (settleData) setSettlementsList(settleData as Settlement[])
 
     // Fetch user names for mapping

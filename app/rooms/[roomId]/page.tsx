@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { supabase, type Transaction, type RoomMember, type Room } from '@/lib/supabase'
 import { authFetch } from '@/lib/authFetch'
 import { readRoomsCache, readRoomUsersCache, writeRoomUsersCache, type RoomUsers } from '@/lib/roomsCache'
+import { THEME_DEFAULTS, roomThemeKey, readCachedTheme, claimThemeCache, syncRoomTheme, saveRoomTheme } from '@/lib/themeStore'
 import { format } from 'date-fns'
 import { ArrowLeft, ArrowUp, ArrowDown, Plus, Users, BarChart2, Trash2, UserPlus, ChevronLeft, ChevronRight, Pencil, Settings } from 'lucide-react'
 import LoadingSpinner from '@/components/LoadingSpinner'
@@ -41,7 +42,7 @@ export default function RoomPage() {
 
   function handleThemeChange(color: string) {
     setThemeColor(color)
-    localStorage.setItem(`spendly_room_theme_${roomId}`, color)
+    if (currentUserId) saveRoomTheme(currentUserId, roomId, color)
   }
 
   // Custom Popup states
@@ -69,7 +70,8 @@ export default function RoomPage() {
 
   // ── Initial load: chỉ load tab Hoạt động ──────────────────────────────────
   const load = useCallback(async () => {
-    const savedTheme = localStorage.getItem(`spendly_room_theme_${roomId}`)
+    // Tô màu ngay từ bản sao; màu trên Supabase sẽ ghi đè khi tải xong
+    const savedTheme = readCachedTheme(roomThemeKey(roomId))
     if (savedTheme) setThemeColor(savedTheme)
 
     // Đọc phiên đăng nhập có sẵn trong trình duyệt (không gọi mạng).
@@ -78,6 +80,7 @@ export default function RoomPage() {
     const user = session?.user
     if (!user) { router.push('/'); return }
     setCurrentUserId(user.id)
+    if (!claimThemeCache(user.id)) setThemeColor(THEME_DEFAULTS.room)
 
     // Hiện ngay khung trang bằng tên phòng và tên thành viên đã lưu từ lần trước.
     const cachedRoom = readRoomsCache(user.id)?.find(r => r.id === roomId)
@@ -109,7 +112,8 @@ export default function RoomPage() {
       { data: memberData },
       txResult,
     ] = await Promise.all([
-      supabase.from('rooms').select('*').eq('id', roomId).single(),
+      // Kèm màu phòng của chính mình (RLS chỉ trả về dòng của người đang đăng nhập)
+      supabase.from('rooms').select('*, user_room_themes(color)').eq('id', roomId).single(),
       supabase.from('room_members').select('*').eq('room_id', roomId),
       supabase
         .from('transactions')
@@ -122,7 +126,10 @@ export default function RoomPage() {
 
     if (!roomData) { router.push('/rooms'); return }
 
-    setRoom(roomData)
+    const { user_room_themes, ...roomOnly } = roomData as Room & { user_room_themes?: { color: string }[] }
+    syncRoomTheme(user.id, roomId, user_room_themes?.[0]?.color, setThemeColor)
+
+    setRoom(roomOnly as Room)
     setTransactions((txResult.data as Transaction[]) ?? [])
     setTotalCount(txResult.count ?? 0)
     setPage(1)

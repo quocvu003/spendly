@@ -7,6 +7,11 @@ import Link from 'next/link'
 import { supabase, type Room } from '@/lib/supabase'
 import { readRoomsCache, writeRoomsCache, clearUserCaches } from '@/lib/roomsCache'
 import {
+  THEME_DEFAULTS, DASHBOARD_THEME_KEY, PERSONAL_THEME_KEY, roomThemeKey,
+  readCachedTheme, claimThemeCache, resolveTheme,
+  saveDashboardTheme, syncPersonalTheme, uploadRoomThemes,
+} from '@/lib/themeStore'
+import {
   Plus, LogOut, Home, BookOpen, ChevronRight, Settings, X, Pencil,
   Menu, ArrowRightCircle, BarChart2, Wallet, Users,
 } from 'lucide-react'
@@ -50,9 +55,10 @@ function RoomsList() {
   const roomsLoadedRef = useRef(false)
 
   useEffect(() => {
-    const savedDash = localStorage.getItem('spendly_dashboard_theme')
+    // Tô màu ngay từ bản sao; màu trên Supabase sẽ ghi đè khi tải xong
+    const savedDash = readCachedTheme(DASHBOARD_THEME_KEY)
     if (savedDash) setDashboardTheme(savedDash)
-    const savedTheme = localStorage.getItem('spendly_personal_theme')
+    const savedTheme = readCachedTheme(PERSONAL_THEME_KEY)
     if (savedTheme) setPersonalTheme(savedTheme)
     const savedName = localStorage.getItem('spendly_personal_name')
     if (savedName) setPersonalName(savedName)
@@ -66,7 +72,7 @@ function RoomsList() {
       setRooms(roomsData)
       const themes: Record<string, string> = {}
       roomsData.forEach(r => {
-        const saved = localStorage.getItem(`spendly_room_theme_${r.id}`)
+        const saved = readCachedTheme(roomThemeKey(r.id))
         if (saved) themes[r.id] = saved
       })
       setRoomThemes(themes)
@@ -82,30 +88,53 @@ function RoomsList() {
       if (cancelled) return
       setCurrentUserId(user.id)
 
+      // Bản sao màu của tài khoản khác trên cùng trình duyệt → bỏ, dùng màu mặc định chờ Supabase
+      if (!claimThemeCache(user.id)) {
+        setDashboardTheme(THEME_DEFAULTS.dashboard)
+        setPersonalTheme(THEME_DEFAULTS.personal)
+      }
+
       // Bước 4: hiện ngay danh sách phòng đã lưu từ lần trước (nếu có).
       // Bỏ qua khi chỉ có 1 phòng và không ở mode=list, vì khi đó trang sẽ chuyển thẳng vào phòng.
       const cached = readRoomsCache(user.id)
       if (cached && (cached.length !== 1 || mode === 'list')) showRooms(cached)
 
       // Bước 3: tải tên hiển thị song song, không chặn danh sách phòng.
-      supabase.from('profiles').select('display_name').eq('id', user.id).single()
+      // Cùng truy vấn này lấy luôn màu dashboard và màu Sổ cá nhân.
+      supabase.from('profiles').select('display_name, dashboard_theme, personal_theme').eq('id', user.id).single()
         .then(({ data: profile }) => {
-          if (!cancelled) setDisplayName(profile?.display_name || user.email?.split('@')[0] || 'bạn')
+          if (cancelled) return
+          setDisplayName(profile?.display_name || user.email?.split('@')[0] || 'bạn')
+
+          const dash = resolveTheme(DASHBOARD_THEME_KEY, profile?.dashboard_theme)
+          if (dash.color) setDashboardTheme(dash.color)
+          if (dash.needsUpload && dash.color) saveDashboardTheme(user.id, dash.color, true)
+
+          syncPersonalTheme(user.id, profile?.personal_theme, setPersonalTheme)
         })
 
-      // Bước 2: lấy phòng qua quan hệ room_members.room_id → rooms.id trong 1 query.
+      // Bước 2: lấy phòng qua quan hệ room_members.room_id → rooms.id trong 1 query,
+      // kèm màu phòng của chính mình (RLS chỉ trả về dòng của người đang đăng nhập).
       const { data, error } = await supabase
-        .from('room_members').select('rooms(*)').eq('user_id', user.id)
+        .from('room_members').select('rooms(*, user_room_themes(color))').eq('user_id', user.id)
       if (cancelled) return
       if (error) {
         if (!cached) setLoading(false)
         return
       }
 
-      const roomsData = ((data ?? []) as unknown as { rooms: Room | null }[])
+      type RoomWithTheme = Room & { user_room_themes?: { color: string }[] }
+      const toUpload: { roomId: string; color: string }[] = []
+      const roomsData = ((data ?? []) as unknown as { rooms: RoomWithTheme | null }[])
         .map(m => m.rooms)
-        .filter((r): r is Room => r !== null)
+        .filter((r): r is RoomWithTheme => r !== null)
+        .map(({ user_room_themes, ...room }) => {
+          const t = resolveTheme(roomThemeKey(room.id), user_room_themes?.[0]?.color)
+          if (t.needsUpload && t.color) toUpload.push({ roomId: room.id, color: t.color })
+          return room as Room
+        })
         .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      uploadRoomThemes(user.id, toUpload)
 
       writeRoomsCache(user.id, roomsData)
       if (roomsData.length === 1 && mode !== 'list') {
@@ -158,7 +187,7 @@ function RoomsList() {
 
   function handleThemeChange(color: string) {
     setDashboardTheme(color)
-    localStorage.setItem('spendly_dashboard_theme', color)
+    if (currentUserId) saveDashboardTheme(currentUserId, color)
   }
 
   async function logout() {

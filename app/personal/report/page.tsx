@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase, type PersonalLabel, type PersonalExpense } from '@/lib/supabase'
+import { THEME_DEFAULTS, PERSONAL_THEME_KEY, readCachedTheme, claimThemeCache, syncPersonalTheme } from '@/lib/themeStore'
 import { format, subMonths, addMonths } from 'date-fns'
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react'
 import LoadingSpinner from '@/components/LoadingSpinner'
@@ -42,7 +43,7 @@ export default function PersonalReportPage() {
   const [displayName, setDisplayName] = useState('User')
 
   useEffect(() => {
-    const savedColor = localStorage.getItem('spendly_personal_theme')
+    const savedColor = readCachedTheme(PERSONAL_THEME_KEY)
     if (savedColor) setThemeColor(savedColor)
     const savedName = localStorage.getItem('spendly_personal_name')
     if (savedName) setPersonalName(savedName)
@@ -66,12 +67,14 @@ export default function PersonalReportPage() {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
     if (!user) { router.push('/'); return }
+    if (!claimThemeCache(user.id)) setThemeColor(THEME_DEFAULTS.personal)
 
-    const { data: profile } = await supabase.from('profiles').select('display_name, avatar_url').eq('id', user.id).single()
+    const { data: profile } = await supabase.from('profiles').select('display_name, avatar_url, personal_theme').eq('id', user.id).single()
     if (profile) {
       setDisplayName(profile.display_name || user.email?.split('@')[0] || 'User')
       setAvatar(profile.avatar_url || '')
     }
+    syncPersonalTheme(user.id, profile?.personal_theme, setThemeColor)
 
     const { from, to } = getRange()
     const { data } = await supabase
