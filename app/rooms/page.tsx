@@ -10,10 +10,10 @@ import {
   readCachedTheme, claimThemeCache, resolveTheme,
   saveDashboardTheme, syncPersonalTheme, uploadRoomThemes,
 } from '@/lib/themeStore'
-import { Plus, Home, BookOpen, X, Pencil, Menu, ArrowDown, ArrowRight } from 'lucide-react'
-import { getContrastColors, getGlowColors } from '@/lib/theme'
-import PulsatingBorder from '@/components/PulsatingBorder'
+import { Plus, Home, BookOpen, X, Pencil, Menu, ArrowDown } from 'lucide-react'
+import { getContrastColors } from '@/lib/theme'
 import NightFlowerField from '@/components/NightFlowerField'
+import { Wordmark, GlowCard, IconTile, ArrowCircle, DarkModal, darkInput } from '@/components/NightUI'
 import ProfileSettingsModal from '@/components/ProfileSettingsModal'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -370,7 +370,7 @@ function RoomsList() {
                   onKeyDown={e => { if (e.key === 'Enter') createRoom(); if (e.key === 'Escape') setShowCreate(false) }}
                   placeholder="Ví dụ: Phòng 101"
                   autoFocus
-                  className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-base text-[#f5efe2] placeholder:text-[#f5efe2]/35 focus:border-white/40 focus:outline-none"
+                  className={darkInput}
                 />
                 <div className="mt-auto flex gap-2 pt-4">
                   <button
@@ -463,7 +463,7 @@ function RoomsList() {
             type="text" value={editRoomName} onChange={e => setEditRoomName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && saveRoomName()} autoFocus
             placeholder="Ví dụ: Phòng 101"
-            className="mb-4 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-base text-[#f5efe2] placeholder:text-[#f5efe2]/35 focus:border-white/40 focus:outline-none"
+            className={`mb-4 ${darkInput}`}
           />
           <button
             onClick={saveRoomName} disabled={savingRoom}
@@ -481,7 +481,7 @@ function RoomsList() {
             type="text" value={editPersonalNameValue} onChange={e => setEditPersonalNameValue(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && savePersonalName()} autoFocus
             placeholder="Ví dụ: Ví của tôi, Quỹ đen…"
-            className="mb-4 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-base text-[#f5efe2] placeholder:text-[#f5efe2]/35 focus:border-white/40 focus:outline-none"
+            className={`mb-4 ${darkInput}`}
           />
           <button
             onClick={savePersonalName}
@@ -492,75 +492,6 @@ function RoomsList() {
           </button>
         </DarkModal>
       )}
-    </div>
-  )
-}
-
-// ── Thành phần giao diện dùng trong trang ──────────────────────────────────
-
-function Wordmark() {
-  return (
-    <span className="flex items-center gap-2.5">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/icon.svg" alt="" width={30} height={30} />
-      <span className="text-xl font-bold tracking-[-0.02em] text-[#f5efe2]">
-        Spend<span className="text-[#ffc4a4]">ly</span>
-      </span>
-    </span>
-  )
-}
-
-/** Card nền tối, ánh màu chủ đề ở góc, viền phát sáng chuyển động phía sau */
-function GlowCard({ theme, className = '', children }: { theme: string; className?: string; children: React.ReactNode }) {
-  return (
-    <div className={`group relative min-w-0 transition-transform duration-300 hover:-translate-y-1 ${className}`}>
-      <PulsatingBorder colors={getGlowColors(theme)} cornerRadius={24} />
-      <div
-        className="relative z-10 h-full overflow-hidden rounded-3xl border border-white/10 bg-[#0b0f1f]/[0.92]"
-        style={{ backgroundImage: `radial-gradient(120% 90% at 0% 0%, ${theme}33 0%, transparent 55%)` }}
-      >
-        {children}
-      </div>
-    </div>
-  )
-}
-
-function IconTile({ theme, children }: { theme: string; children: React.ReactNode }) {
-  return (
-    <span
-      className="grid h-12 w-12 place-items-center rounded-2xl"
-      style={{ backgroundColor: theme, color: getContrastColors(theme).text, boxShadow: `0 8px 24px ${theme}55` }}
-    >
-      {children}
-    </span>
-  )
-}
-
-function ArrowCircle({ small = false }: { small?: boolean }) {
-  return (
-    <span
-      className={`grid shrink-0 place-items-center rounded-full border-[1.5px] border-[#f5efe2]/70 text-[#f5efe2] transition-colors duration-300 group-hover:border-[#f5efe2] group-hover:bg-[#f5efe2] group-hover:text-[#151510] ${
-        small ? 'h-11 w-11' : 'h-14 w-14'
-      }`}
-    >
-      <ArrowRight size={small ? 18 : 22} strokeWidth={1.6} />
-    </span>
-  )
-}
-
-function DarkModal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0e1324] p-6 text-[#f5efe2] shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-        <div className="mb-5 flex items-center justify-between">
-          <h3 className="text-lg font-bold">{title}</h3>
-          <button onClick={onClose} aria-label="Đóng" className="text-[#f5efe2]/50 hover:text-[#f5efe2]"><X size={22} /></button>
-        </div>
-        {children}
-      </div>
     </div>
   )
 }
