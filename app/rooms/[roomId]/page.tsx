@@ -4,12 +4,15 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase, type Transaction, type RoomMember, type Room } from '@/lib/supabase'
+import { authFetch } from '@/lib/authFetch'
+import { readRoomsCache, readRoomUsersCache, writeRoomUsersCache, type RoomUsers } from '@/lib/roomsCache'
 import { format } from 'date-fns'
 import { ArrowLeft, ArrowUp, ArrowDown, Plus, Users, BarChart2, Trash2, UserPlus, ChevronLeft, ChevronRight, Pencil, Settings } from 'lucide-react'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { getContrastColors } from '@/lib/theme'
 import GlobalProfileHeader from '@/components/GlobalProfileHeader'
 import ProfileSettingsModal from '@/components/ProfileSettingsModal'
+import RoomTransactionModal from '@/components/RoomTransactionModal'
 
 const PAGE_SIZE = 10
 
@@ -18,7 +21,6 @@ function formatMoney(n: number) {
 }
 
 export default function RoomPage() {
-  console.log("Trigger rebuild")
   const router = useRouter()
   const { roomId } = useParams<{ roomId: string }>()
 
@@ -32,6 +34,7 @@ export default function RoomPage() {
   const [userAvatars, setUserAvatars] = useState<Record<string, string>>({})
   const [currentUserId, setCurrentUserId] = useState('')
   const [loading, setLoading] = useState(true)
+  const [namesLoaded, setNamesLoaded] = useState(false)
   const [tab, setTab] = useState<'transactions' | 'members' | 'settle'>('transactions')
   const [themeColor, setThemeColor] = useState('#4f46e5')
   const [showSettings, setShowSettings] = useState(false)
@@ -44,6 +47,8 @@ export default function RoomPage() {
   // Custom Popup states
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [showSettleConfirm, setShowSettleConfirm] = useState(false)
+  // Popup thêm/sửa giao dịch: tx = null là thêm mới
+  const [txModal, setTxModal] = useState<{ tx: Transaction | null } | null>(null)
   const [alertMessage, setAlertMessage] = useState<string | null>(null)
 
   // Settlement states
@@ -64,19 +69,48 @@ export default function RoomPage() {
 
   // ── Initial load: chỉ load tab Hoạt động ──────────────────────────────────
   const load = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const savedTheme = localStorage.getItem(`spendly_room_theme_${roomId}`)
+    if (savedTheme) setThemeColor(savedTheme)
+
+    // Đọc phiên đăng nhập có sẵn trong trình duyệt (không gọi mạng).
+    // An toàn ở phía client vì quyền truy cập dữ liệu do RLS của Supabase kiểm soát.
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) { router.push('/'); return }
     setCurrentUserId(user.id)
+
+    // Hiện ngay khung trang bằng tên phòng và tên thành viên đã lưu từ lần trước.
+    const cachedRoom = readRoomsCache(user.id)?.find(r => r.id === roomId)
+    if (cachedRoom) setRoom(prev => prev ?? cachedRoom)
+    const cachedUsers = readRoomUsersCache(user.id, roomId)
+    if (cachedUsers) {
+      setUserNames(cachedUsers.userMap)
+      setUserAvatars(cachedUsers.avatarMap)
+      setNamesLoaded(true)
+    }
+
+    // Tên thành viên đi qua API route (trình duyệt → Next.js → Supabase) nên chậm nhất:
+    // tải riêng, không bắt dữ liệu phòng phải chờ.
+    authFetch(`/api/room-users?roomId=${roomId}`)
+      .then(r => r.ok ? r.json() : null)
+      .catch(() => null)
+      .then((res: RoomUsers | null) => {
+        if (res) {
+          const users = { userMap: res.userMap ?? {}, avatarMap: res.avatarMap ?? {} }
+          setUserNames(users.userMap)
+          setUserAvatars(users.avatarMap)
+          writeRoomUsersCache(user.id, roomId, users)
+        }
+        setNamesLoaded(true)
+      })
 
     const [
       { data: roomData },
       { data: memberData },
-      userNamesRes,
       txResult,
     ] = await Promise.all([
       supabase.from('rooms').select('*').eq('id', roomId).single(),
       supabase.from('room_members').select('*').eq('room_id', roomId),
-      fetch(`/api/room-users?roomId=${roomId}`).then(r => r.ok ? r.json() : { userMap: {}, avatarMap: {} }).catch(() => ({ userMap: {}, avatarMap: {} })),
       supabase
         .from('transactions')
         .select('*, splits:transaction_splits(*)', { count: 'exact' })
@@ -88,16 +122,11 @@ export default function RoomPage() {
 
     if (!roomData) { router.push('/rooms'); return }
 
-    const savedTheme = localStorage.getItem(`spendly_room_theme_${roomId}`)
-    if (savedTheme) setThemeColor(savedTheme)
-
     setRoom(roomData)
     setTransactions((txResult.data as Transaction[]) ?? [])
     setTotalCount(txResult.count ?? 0)
     setPage(1)
     setMembers((memberData as RoomMember[]) ?? [])
-    setUserNames(userNamesRes?.userMap ?? {})
-    setUserAvatars(userNamesRes?.avatarMap ?? {})
     setSettleLoaded(false)
     setLoading(false)
   }, [roomId, router])
@@ -214,16 +243,21 @@ export default function RoomPage() {
   // ── Tab change ─────────────────────────────────────────────────────────────
   function handleTabChange(newTab: 'transactions' | 'members' | 'settle') {
     setTab(newTab)
-    if (newTab === 'settle' && !settleLoaded) {
+  }
+
+  // Tab Thanh toán chỉ tính khi đã có đủ thành viên và tên, để không tính sai số dư
+  // nếu người dùng bấm vào tab trong lúc dữ liệu còn đang tải.
+  useEffect(() => {
+    if (tab === 'settle' && !loading && namesLoaded && !settleLoaded && !settleLoading) {
       loadSettleData(members, userNames, currentUserId)
     }
-  }
+  }, [tab, loading, namesLoaded, settleLoaded, settleLoading, members, userNames, currentUserId, loadSettleData])
 
   // ── Member actions ─────────────────────────────────────────────────────────
   async function addMember() {
     if (!addUsername.trim()) return
     setAddingMember(true); setAddError('')
-    const res = await fetch('/api/add-member', {
+    const res = await authFetch('/api/add-member', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ roomId, username: addUsername.trim() }),
@@ -242,6 +276,14 @@ export default function RoomPage() {
   }
 
   // ── Delete transaction ─────────────────────────────────────────────────────
+  // Sau khi thêm/sửa: tải lại danh sách (thêm mới → về trang 1) và tính lại tab Thanh toán.
+  function handleTxSaved() {
+    const isNew = !txModal?.tx
+    setTxModal(null)
+    setSettleLoaded(false)
+    fetchPage(isNew ? 1 : page, filterType, filterPaidBy, sortField, sortOrder)
+  }
+
   function confirmDelete(id: string) { setDeleteConfirmId(id) }
 
   async function deleteTransaction() {
@@ -315,9 +357,12 @@ export default function RoomPage() {
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
   const cc = getContrastColors(themeColor)
 
-  if (loading) {
+  // Chỉ che cả màn hình khi chưa biết gì về phòng (lần đầu mở, chưa có bản sao).
+  if (loading && !room) {
     return <LoadingSpinner message="Đang tải phòng..." fullscreen />
   }
+  // Giao dịch hiển thị tên người trả: chờ có tên để không hiện mã id thô.
+  const txLoading = pageLoading || loading || !namesLoaded
 
   return (
     <main className="max-w-md mx-auto min-h-screen bg-gray-50 pb-24">
@@ -429,7 +474,7 @@ export default function RoomPage() {
               </div>
             </div>
 
-            {pageLoading ? (
+            {txLoading ? (
               <LoadingSpinner message="Đang tải giao dịch..." size="sm" />
             ) : transactions.length === 0 ? (
               <div className="text-center py-16 text-gray-400">
@@ -462,9 +507,9 @@ export default function RoomPage() {
                           <span className="font-bold text-sm text-gray-900">{formatMoney(tx.amount)}</span>
                           {tx.paid_by === currentUserId && (
                             <div className="flex items-center gap-1">
-                              <Link href={`/rooms/${roomId}/transactions/${tx.id}/edit`} className="p-1 text-gray-300 hover:text-indigo-400 transition-colors">
+                              <button onClick={() => setTxModal({ tx })} className="p-1 text-gray-300 hover:text-indigo-400 transition-colors">
                                 <Pencil size={16} />
-                              </Link>
+                              </button>
                               <button onClick={() => confirmDelete(tx.id)} className="p-1 text-gray-300 hover:text-red-400 transition-colors">
                                 <Trash2 size={16} />
                               </button>
@@ -558,6 +603,7 @@ export default function RoomPage() {
                 </button>
               </div>
             )}
+            {loading && <LoadingSpinner message="Đang tải thành viên..." size="sm" />}
             <div className="space-y-2">
               {members.map(m => (
                 <div key={m.id} className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center justify-between">
@@ -644,14 +690,28 @@ export default function RoomPage() {
       </div>
 
       {/* FAB */}
-      <Link href={`/rooms/${roomId}/transactions/new`}
-        className="fixed bottom-6 right-4 rounded-full px-5 py-3 flex items-center gap-2 shadow-lg transition-colors"
+      {/* Chờ có danh sách thành viên mới cho thêm, vì giao dịch cần biết chia cho ai */}
+      <button onClick={() => setTxModal({ tx: null })} disabled={loading}
+        className="fixed bottom-6 right-4 rounded-full px-5 py-3 flex items-center gap-2 shadow-lg transition-colors disabled:opacity-60"
         style={{ backgroundColor: themeColor, color: cc.text }}>
         <Plus size={20} />
         <span className="font-medium text-sm">Thêm</span>
-      </Link>
+      </button>
 
       {/* Modals */}
+      {txModal && (
+        <RoomTransactionModal
+          roomId={roomId}
+          themeColor={themeColor}
+          members={members}
+          userNames={userNames}
+          currentUserId={currentUserId}
+          transaction={txModal.tx}
+          onClose={() => setTxModal(null)}
+          onSaved={handleTxSaved}
+        />
+      )}
+
       {deleteConfirmId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-in fade-in zoom-in-95 duration-200">

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase, type Settlement, type Transaction } from '@/lib/supabase'
+import { authFetch } from '@/lib/authFetch'
 import { format } from 'date-fns'
 import { ArrowLeft, History, FileText, ChevronRight, Calculator, User, ArrowRight } from 'lucide-react'
 import LoadingSpinner from '@/components/LoadingSpinner'
@@ -39,7 +40,8 @@ export default function ReportPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) { router.push('/'); return }
 
     const [{ data: roomData }, { data: settleData }] = await Promise.all([
@@ -52,7 +54,7 @@ export default function ReportPage() {
 
     // Fetch user names for mapping
     try {
-      const res = await fetch(`/api/room-users?roomId=${roomId}`)
+      const res = await authFetch(`/api/room-users?roomId=${roomId}`)
       if (res.ok) {
         const { userMap, avatarMap } = await res.json()
         if (userMap) setUserNames(userMap)
