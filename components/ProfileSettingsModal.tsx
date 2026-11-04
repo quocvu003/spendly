@@ -27,7 +27,8 @@ export default function ProfileSettingsModal({ onClose, themeColor = '#6c7ee1', 
     async function load() {
       const savedAvatar = localStorage.getItem('spendly_avatar') || ''
       setEditAvatar(savedAvatar)
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
       if (user) {
         const { data } = await supabase.from('profiles').select('display_name, avatar_url').eq('id', user.id).single()
         setEditDisplayName(data?.display_name || '')
@@ -41,13 +42,14 @@ export default function ProfileSettingsModal({ onClose, themeColor = '#6c7ee1', 
 
   async function saveProfile() {
     setSavingProfile(true)
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (user) {
-      const { error } = await supabase.from('profiles').upsert({ 
-        id: user.id,
+      // update thay vì upsert: profiles.username là NOT NULL nên upsert thiếu username bị từ chối
+      const { error } = await supabase.from('profiles').update({
         display_name: editDisplayName.trim() || null,
         avatar_url: editAvatar || null
-      })
+      }).eq('id', user.id)
       if (error) console.error('Save profile error:', error)
       
       const freshName = editDisplayName.trim() || 'User'

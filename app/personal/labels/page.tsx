@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase, type PersonalLabel } from '@/lib/supabase'
+import { THEME_DEFAULTS, PERSONAL_THEME_KEY, readCachedTheme, claimThemeCache, syncPersonalTheme } from '@/lib/themeStore'
 import { ArrowLeft, Plus, Pencil, Trash2, X, Check } from 'lucide-react'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { getContrastColors } from '@/lib/theme'
@@ -35,7 +36,7 @@ export default function LabelsPage() {
   const [themeColor, setThemeColor] = useState('#059669')
 
   useEffect(() => {
-    const saved = localStorage.getItem('spendly_personal_theme')
+    const saved = readCachedTheme(PERSONAL_THEME_KEY)
     if (saved) setThemeColor(saved)
   }, [])
 
@@ -45,12 +46,14 @@ export default function LabelsPage() {
       const user = session?.user
       if (!user) { router.push('/'); return }
       setUserId(user.id)
-      
-      const { data: profile } = await supabase.from('profiles').select('display_name, avatar_url').eq('id', user.id).single()
+      if (!claimThemeCache(user.id)) setThemeColor(THEME_DEFAULTS.personal)
+
+      const { data: profile } = await supabase.from('profiles').select('display_name, avatar_url, personal_theme').eq('id', user.id).single()
       if (profile) {
         setDisplayName(profile.display_name || user.email?.split('@')[0] || 'User')
         setAvatar(profile.avatar_url || '')
       }
+      syncPersonalTheme(user.id, profile?.personal_theme, setThemeColor)
 
       const { data } = await supabase.from('personal_labels').select('*').order('created_at')
       setLabels((data as PersonalLabel[]) ?? [])

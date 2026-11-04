@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase, type PersonalLabel, type PersonalExpense } from '@/lib/supabase'
+import { THEME_DEFAULTS, PERSONAL_THEME_KEY, readCachedTheme, claimThemeCache, syncPersonalTheme, savePersonalTheme } from '@/lib/themeStore'
 import { format } from 'date-fns'
 import { ArrowLeft, Plus, Tag, BarChart2, ArrowUp, ArrowDown, Trash2, X, Pencil, Settings, ChevronLeft, ChevronRight } from 'lucide-react'
 import LoadingSpinner from '@/components/LoadingSpinner'
@@ -69,7 +70,7 @@ export default function PersonalPage() {
 
   function handleThemeChange(color: string) {
     setThemeColor(color)
-    localStorage.setItem('spendly_personal_theme', color)
+    if (userId) savePersonalTheme(userId, color)
   }
 
   const fetchExpenses = useCallback(async (
@@ -93,16 +94,18 @@ export default function PersonalPage() {
       const user = session?.user
       if (!user) { router.push('/'); return }
       setUserId(user.id)
-      const savedTheme = localStorage.getItem('spendly_personal_theme')
-      if (savedTheme) setThemeColor(savedTheme)
+      // Tô màu ngay từ bản sao; màu trên Supabase sẽ ghi đè khi tải xong
+      const savedTheme = claimThemeCache(user.id) ? readCachedTheme(PERSONAL_THEME_KEY) : null
+      setThemeColor(savedTheme ?? THEME_DEFAULTS.personal)
       const savedName = localStorage.getItem('spendly_personal_name')
       if (savedName) setPersonalName(savedName)
 
-      const { data: profile } = await supabase.from('profiles').select('display_name, avatar_url').eq('id', user.id).single()
+      const { data: profile } = await supabase.from('profiles').select('display_name, avatar_url, personal_theme').eq('id', user.id).single()
       if (profile) {
         setDisplayName(profile.display_name || user.email?.split('@')[0] || 'User')
         setAvatar(profile.avatar_url || '')
       }
+      syncPersonalTheme(user.id, profile?.personal_theme, setThemeColor)
 
       const { data } = await supabase.from('personal_labels').select('*').order('created_at')
       setLabels((data as PersonalLabel[]) ?? [])

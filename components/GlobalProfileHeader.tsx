@@ -25,7 +25,8 @@ export default function ProfileHeader({ textColor = '#ffffff' }: { textColor?: s
 
     // Background sync with DB to ensure cache is always populated
     async function syncProfile() {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
       if (!user) return
       const { data: profile } = await supabase.from('profiles').select('display_name, avatar_url').eq('id', user.id).single()
       if (profile) {
