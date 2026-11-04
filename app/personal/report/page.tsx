@@ -2,14 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { supabase, type PersonalLabel, type PersonalExpense } from '@/lib/supabase'
 import { THEME_DEFAULTS, PERSONAL_THEME_KEY, readCachedTheme, claimThemeCache, syncPersonalTheme } from '@/lib/themeStore'
 import { format, subMonths, addMonths } from 'date-fns'
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react'
-import LoadingSpinner from '@/components/LoadingSpinner'
-import { getContrastColors } from '@/lib/theme'
-import GlobalProfileHeader from '@/components/GlobalProfileHeader'
+import { ChevronLeft, ChevronRight, Tag, TrendingUp, TrendingDown, PieChart } from 'lucide-react'
+import NightFlowerField from '@/components/NightFlowerField'
+import { GlowCard, DarkPanel, darkInput, NightTopBar, NavPill, PageTitle, Stat } from '@/components/NightUI'
 
 function formatMoney(n: number) {
   return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + 'đ'
@@ -105,161 +103,201 @@ export default function PersonalReportPage() {
   const totalIncome = expenses.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
   const netTotal = totalIncome - totalExpense
   const { from, to } = getRange()
-  const cc = getContrastColors(themeColor)
 
   function prevMonth() { setCurrentMonth(m => subMonths(m, 1)) }
   function nextMonth() { setCurrentMonth(m => addMonths(m, 1)) }
 
+  const rangeLabel = `${format(new Date(from), 'dd/MM/yyyy')} – ${format(new Date(to), 'dd/MM/yyyy')}`
+
   return (
-    <main className="max-w-md mx-auto min-h-screen bg-gray-50 pb-10">
-      {/* Header */}
-      <div className="px-4 pt-6 pb-4" style={{ backgroundColor: themeColor }}>
-        <GlobalProfileHeader textColor={cc.text} />
-        <div className="flex items-center gap-3 mb-4">
-          <Link href="/personal" style={{ color: cc.muted }}>
-            <ArrowLeft size={22} />
-          </Link>
-          <h1 className="font-bold text-lg flex-1 truncate" style={{ color: cc.text }}>
-            Báo cáo: {personalName}
-          </h1>
-        </div>
+    // overflow-x-clip: quầng sáng của card tràn ra ngoài, không để nó tạo thanh cuộn ngang
+    <div className="min-h-screen bg-[#04050b] text-[#f5efe2] overflow-x-clip">
+      <NightFlowerField calm />
 
-        {/* Mode toggle */}
-        <div className="flex rounded-xl p-1 mb-3" style={{ backgroundColor: cc.iconBg }}>
-          <button onClick={() => setIsCustom(false)}
-            className="flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors"
-            style={!isCustom ? { backgroundColor: '#fff', color: themeColor } : { color: cc.text }}>
-            Theo tháng
-          </button>
-          <button onClick={() => setIsCustom(true)}
-            className="flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors"
-            style={isCustom ? { backgroundColor: '#fff', color: themeColor } : { color: cc.text }}>
-            Tùy chỉnh
-          </button>
-        </div>
+      <div className="relative z-10 mx-auto max-w-3xl px-5 pb-24 sm:px-8">
+        <NightTopBar backHref="/personal">
+          <NavPill href="/personal/labels" label="Nhãn"><Tag size={16} /></NavPill>
+        </NightTopBar>
 
-        {!isCustom ? (
-          <div className="flex items-center justify-between rounded-xl px-3 py-2" style={{ backgroundColor: cc.iconBg }}>
-            <button onClick={prevMonth} style={{ color: cc.text }} className="p-1"><ChevronLeft size={20} /></button>
-            <div className="flex flex-col items-center">
-              <span className="font-semibold text-sm" style={{ color: cc.text }}>
-                Tháng {format(currentMonth, 'MM/yyyy')}
-              </span>
-              <span className="text-[10px] opacity-70" style={{ color: cc.text }}>
-                {format(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 10), 'dd/MM')} → {format(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 9), 'dd/MM/yyyy')}
-              </span>
-            </div>
-            <button onClick={nextMonth} style={{ color: cc.text }} className="p-1"><ChevronRight size={20} /></button>
+        <PageTitle
+          eyebrow="Báo cáo"
+          dotColor={themeColor}
+          title={personalName}
+          subtitle={rangeLabel}
+        />
+
+        {/* ── Chọn kỳ ── */}
+        <DarkPanel className="p-5 sm:p-6">
+          <div className="flex rounded-full border border-white/10 bg-white/5 p-1">
+            {([false, true] as const).map(custom => (
+              <button key={String(custom)} onClick={() => setIsCustom(custom)}
+                className={`flex-1 rounded-full py-2 text-sm font-semibold transition-colors ${
+                  isCustom === custom ? 'bg-[#f5efe2] text-[#151510]' : 'text-[#f5efe2]/60 hover:text-[#f5efe2]'
+                }`}>
+                {custom ? 'Tuỳ chỉnh' : 'Theo tháng'}
+              </button>
+            ))}
           </div>
-        ) : (
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <p className="text-[10px] font-medium mb-0.5" style={{ color: cc.muted }}>Từ ngày</p>
-              <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
-                className="w-full text-xs px-2 py-1.5 rounded-lg outline-none [color-scheme:dark]"
-                style={{ backgroundColor: cc.iconBg, color: cc.text }} />
-            </div>
-            <div className="flex-1">
-              <p className="text-[10px] font-medium mb-0.5" style={{ color: cc.muted }}>Đến ngày</p>
-              <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
-                className="w-full text-xs px-2 py-1.5 rounded-lg outline-none [color-scheme:dark]"
-                style={{ backgroundColor: cc.iconBg, color: cc.text }} />
-            </div>
-          </div>
-        )}
-      </div>
 
-      {loading ? <LoadingSpinner message="Đang tải báo cáo..." /> : (
-        <div className="px-4 py-5 space-y-5">
-          {/* Summary card */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-            <p className="text-xs text-gray-400 mb-4 text-center">
-              {format(new Date(from), 'dd/MM/yyyy')} → {format(new Date(to), 'dd/MM/yyyy')}
-            </p>
-            <div className="grid grid-cols-2 gap-4 text-center mb-4">
-              <div>
-                <p className="text-[10px] text-gray-500 mb-1 font-bold uppercase tracking-wider">Tổng thu</p>
-                <p className="text-xl font-black text-emerald-600">+{formatMoney(totalIncome)}</p>
+          {!isCustom ? (
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <button onClick={prevMonth} aria-label="Tháng trước"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/15 text-[#f5efe2]/80 transition-colors hover:bg-white/10">
+                <ChevronLeft size={18} />
+              </button>
+              <div className="min-w-0 text-center">
+                <p className="text-lg font-bold">Tháng {format(currentMonth, 'MM/yyyy')}</p>
+                <p className="text-xs text-[#f5efe2]/50">
+                  {format(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 10), 'dd/MM')} – {format(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 9), 'dd/MM/yyyy')}
+                </p>
               </div>
-              <div>
-                <p className="text-[10px] text-gray-500 mb-1 font-bold uppercase tracking-wider">Tổng chi</p>
-                <p className="text-xl font-black text-red-500">-{formatMoney(totalExpense)}</p>
-              </div>
+              <button onClick={nextMonth} aria-label="Tháng sau"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/15 text-[#f5efe2]/80 transition-colors hover:bg-white/10">
+                <ChevronRight size={18} />
+              </button>
             </div>
-            <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
-              <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Số dư</p>
-              <p className={`text-2xl font-black ${netTotal >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+          ) : (
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <label className="min-w-0">
+                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.16em] text-[#f5efe2]/50">Từ ngày</span>
+                <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
+                  className={`${darkInput} !py-2.5 !text-sm`} />
+              </label>
+              <label className="min-w-0">
+                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.16em] text-[#f5efe2]/50">Đến ngày</span>
+                <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
+                  className={`${darkInput} !py-2.5 !text-sm`} />
+              </label>
+            </div>
+          )}
+        </DarkPanel>
+
+        {/* ── Tổng kết ── */}
+        <GlowCard theme={themeColor} lift={false} className="mt-6">
+          <div className="p-6 sm:p-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#f5efe2]/50">Số dư</p>
+            {loading ? (
+              <div className="mt-3 h-12 w-56 animate-pulse rounded-xl bg-white/10" />
+            ) : (
+              <p className={`mt-2 truncate text-4xl font-extrabold tabular-nums tracking-[-0.03em] sm:text-5xl ${netTotal < 0 ? 'text-rose-300' : ''}`}>
                 {netTotal >= 0 ? '+' : ''}{formatMoney(netTotal)}
               </p>
+            )}
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <Stat label="Tổng thu" value={`+${formatMoney(totalIncome)}`} tone="text-emerald-300" loading={loading}>
+                <TrendingUp size={15} />
+              </Stat>
+              <Stat label="Tổng chi" value={`-${formatMoney(totalExpense)}`} tone="text-rose-300" loading={loading}>
+                <TrendingDown size={15} />
+              </Stat>
             </div>
           </div>
+        </GlowCard>
 
-          {/* Label breakdown */}
-          {labelSummaries.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-              <h2 className="text-sm font-bold text-gray-900 mb-4">Cơ cấu chi tiêu</h2>
-              <div className="space-y-3">
-                {labelSummaries.map((s, i) => {
-                  const pct = totalExpense > 0 ? (s.total / totalExpense) * 100 : 0
-                  const color = s.label?.color ?? '#9ca3af'
-                  const name = s.label?.name ?? 'Không có label'
-                  return (
-                    <div key={i}>
-                      <div className="flex justify-between items-center mb-1">
-                        <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: color }} />
-                          <span className="text-sm text-gray-700">{name}</span>
-                          <span className="text-xs text-gray-400">({s.count})</span>
+        {!loading && expenses.length === 0 ? (
+          <DarkPanel className="mt-6 flex flex-col items-center px-6 py-16 text-center">
+            <span className="grid h-14 w-14 place-items-center rounded-2xl border border-white/15 text-[#f5efe2]/60">
+              <PieChart size={24} />
+            </span>
+            <p className="mt-4 font-semibold">Không có dữ liệu trong kỳ này</p>
+            <p className="mt-1 text-sm text-[#f5efe2]/50">Chọn kỳ khác hoặc thêm giao dịch ở Sổ cá nhân.</p>
+          </DarkPanel>
+        ) : (
+          <>
+            {/* ── Cơ cấu chi tiêu ── */}
+            {(loading || labelSummaries.length > 0) && (
+              <DarkPanel className="mt-6 overflow-hidden">
+                <SectionHeader title="Cơ cấu chi tiêu" right={!loading ? formatMoney(totalExpense) : undefined} />
+                <div className="space-y-5 p-5 sm:p-6">
+                  {loading
+                    ? [0, 1, 2].map(i => (
+                        <div key={i} className="space-y-2">
+                          <div className="h-3.5 w-1/3 animate-pulse rounded bg-white/10" />
+                          <div className="h-2 w-full animate-pulse rounded-full bg-white/5" />
                         </div>
-                        <span className="text-sm font-bold text-gray-900">{formatMoney(s.total)}</span>
-                      </div>
-                      <div className="w-full bg-gray-100 rounded-full h-2">
-                        <div className="h-2 rounded-full transition-all"
-                          style={{ width: `${pct}%`, backgroundColor: color }} />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
+                      ))
+                    : labelSummaries.map((s, i) => {
+                        const pct = totalExpense > 0 ? (s.total / totalExpense) * 100 : 0
+                        const color = s.label?.color ?? '#9ca3af'
+                        const name = s.label?.name ?? 'Không có nhãn'
+                        return (
+                          <div key={i}>
+                            <div className="mb-2 flex items-center justify-between gap-3">
+                              <div className="flex min-w-0 items-center gap-2">
+                                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+                                <span className="truncate text-sm font-semibold">{name}</span>
+                                <span className="shrink-0 text-xs text-[#f5efe2]/40">{s.count} khoản</span>
+                              </div>
+                              <div className="shrink-0 text-right">
+                                <span className="text-sm font-bold tabular-nums">{formatMoney(s.total)}</span>
+                                <span className="ml-2 text-xs tabular-nums text-[#f5efe2]/50">{pct.toFixed(0)}%</span>
+                              </div>
+                            </div>
+                            <div className="h-2 w-full rounded-full bg-white/10">
+                              <div className="h-2 rounded-full transition-all duration-500"
+                                style={{ width: `${pct}%`, backgroundColor: color, boxShadow: `0 0 12px ${color}88` }} />
+                            </div>
+                          </div>
+                        )
+                      })}
+                </div>
+              </DarkPanel>
+            )}
 
-          {/* Top expenses */}
-          {expenses.length > 0 && (
-            <div>
-              <h2 className="text-xs font-bold text-gray-400 mb-3 px-1 uppercase tracking-widest">Chi tiết</h2>
-              <div className="space-y-2">
-                {expenses.map(exp => (
-                  <div key={exp.id} className="bg-white rounded-xl border border-gray-100 p-3 flex items-center gap-3 shadow-sm">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-1.5 mb-0.5">
-                        {exp.label && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium text-white"
-                            style={{ backgroundColor: exp.label.color }}>
-                            {exp.label.name}
-                          </span>
-                        )}
-                        <span className="text-[10px] text-gray-400">{format(new Date(exp.date), 'dd/MM')}</span>
+            {/* ── Chi tiết ── */}
+            <DarkPanel className="mt-6 overflow-hidden">
+              <SectionHeader title="Chi tiết" right={!loading ? `${expenses.length} khoản` : undefined} />
+              {loading ? (
+                <div className="divide-y divide-white/5">
+                  {[0, 1, 2].map(i => (
+                    <div key={i} className="flex items-center gap-3 px-5 py-4">
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3.5 w-2/5 animate-pulse rounded bg-white/10" />
+                        <div className="h-3 w-1/4 animate-pulse rounded bg-white/5" />
                       </div>
-                      <p className="text-sm text-gray-800">{exp.description}</p>
+                      <div className="h-4 w-20 animate-pulse rounded bg-white/10" />
                     </div>
-                    <span className={`font-bold text-sm ${exp.type === 'income' ? 'text-emerald-600' : 'text-gray-900'}`}>
-                      {exp.type === 'income' ? '+' : '-'}{formatMoney(exp.amount)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+                  ))}
+                </div>
+              ) : (
+                <ul className="divide-y divide-white/5">
+                  {expenses.map(exp => {
+                    const income = exp.type === 'income'
+                    return (
+                      <li key={exp.id} className="flex items-start gap-3 px-5 py-3.5 sm:px-6">
+                        <div className="min-w-0 flex-1">
+                          <p className="line-clamp-2 text-sm font-semibold [overflow-wrap:anywhere]">{exp.description}</p>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[#f5efe2]/50">
+                            <span>{format(new Date(exp.date), 'dd/MM')}</span>
+                            {exp.label && (
+                              <span className="max-w-[10rem] truncate rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
+                                style={{ backgroundColor: exp.label.color }}>
+                                {exp.label.name}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <span className={`shrink-0 text-sm font-bold tabular-nums ${income ? 'text-emerald-300' : ''}`}>
+                          {income ? '+' : '-'}{formatMoney(exp.amount)}
+                        </span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </DarkPanel>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
 
-          {expenses.length === 0 && (
-            <div className="text-center py-16 text-gray-400">
-              <p className="text-4xl mb-3">📊</p>
-              <p className="text-sm">Không có dữ liệu trong kỳ này</p>
-            </div>
-          )}
-        </div>
-      )}
-    </main>
+function SectionHeader({ title, right }: { title: string; right?: string }) {
+  return (
+    <div className="flex items-end justify-between gap-3 border-b border-white/10 px-5 pb-4 pt-5 sm:px-6">
+      <h2 className="text-xl font-extrabold tracking-[-0.03em] sm:text-2xl">{title}</h2>
+      {right && <span className="shrink-0 text-sm tabular-nums text-[#f5efe2]/50">{right}</span>}
+    </div>
   )
 }
