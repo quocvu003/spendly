@@ -68,6 +68,17 @@ export type PersonalLabel = {
   created_at: string
 }
 
+// Mục tiêu hằng tháng gắn với một nhãn (bảng personal_goals)
+// limit: giới hạn chi; target: mục tiêu tích luỹ (các khoản của nhãn được tính là Tích luỹ)
+export type PersonalGoal = {
+  id: string
+  user_id: string
+  label_id: string
+  kind: 'limit' | 'target'
+  amount: number
+  created_at: string
+}
+
 export type PersonalExpense = {
   id: string
   user_id: string
