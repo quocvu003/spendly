@@ -296,10 +296,12 @@ function RoomsList() {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {/* Sổ cá nhân: thẻ nổi bật, chiếm hết bề ngang */}
           <GlowCard theme={personalTheme} className="md:col-span-2">
-            <Link href="/personal" className="relative z-10 flex min-h-[200px] flex-col justify-between gap-8 p-7 sm:flex-row sm:items-end sm:p-9">
+            {/* Cùng bố cục với thẻ phòng: biểu tượng ở trên; tên bên trái, nút mũi tên bên phải */}
+            <Link href="/personal" className="relative z-10 flex min-h-[200px] flex-col justify-between gap-8 p-7 sm:p-9">
+              <IconTile theme={personalTheme}><BookOpen size={22} /></IconTile>
+              <div className="flex items-end justify-between gap-4">
               <div className="min-w-0">
-                <IconTile theme={personalTheme}><BookOpen size={22} /></IconTile>
-                <p className="mt-6 text-xs font-semibold uppercase tracking-[0.2em] text-[#f5efe2]/50">Cá nhân</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#f5efe2]/50">Cá nhân</p>
                 <div className="mt-1 flex items-start gap-2">
                   {/* Tên dài: xuống dòng, tối đa 2 dòng rồi cắt bằng … */}
                   <h3 className="line-clamp-2 min-w-0 text-3xl font-extrabold tracking-[-0.03em] [overflow-wrap:anywhere] sm:text-4xl">{personalName}</h3>
@@ -316,7 +318,10 @@ function RoomsList() {
                 </div>
                 <p className="mt-2 max-w-sm text-sm text-[#f5efe2]/60">Ghi chép thu chi của riêng bạn, theo nhãn và theo tháng.</p>
               </div>
-              <ArrowCircle />
+              {/* Điện thoại: nút nhỏ như thẻ phòng; màn hình lớn: nút lớn */}
+              <span className="sm:hidden"><ArrowCircle small /></span>
+              <span className="hidden sm:block"><ArrowCircle /></span>
+              </div>
             </Link>
           </GlowCard>
 
