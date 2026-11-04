@@ -302,7 +302,11 @@ function createField(count: number, halfWidth: number, colorN: number, flowerN: 
   return pts
 }
 
-export default function NightFlowerField({ className = '' }: { className?: string }) {
+/**
+ * calm: chế độ êm cho các trang làm việc (danh sách, form): khoảng nửa số hoa,
+ * tối đa 30 hình/giây để nhẹ máy và đỡ tốn pin.
+ */
+export default function NightFlowerField({ className = '', calm = false }: { className?: string; calm?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -329,7 +333,7 @@ export default function NightFlowerField({ className = '' }: { className?: strin
     function build() {
       const small = w < 820
       const area = (w * h) / 1000
-      const count = Math.round(Math.min(7500, Math.max(3200, area * (small ? 6.5 : 5.4))) * quality)
+      const count = Math.round(Math.min(7500, Math.max(3200, area * (small ? 6.5 : 5.4))) * quality * (calm ? 0.5 : 1))
       const halfWidth = Math.min(HALF_WIDTH, Math.max(4, HALF_WIDTH * (w / h) / 1.6))
       points = createField(count, halfWidth, PETAL_COLORS.length, flowers.length)
       dust = Array.from({ length: small ? 30 : 60 }, () => ({
@@ -565,16 +569,20 @@ export default function NightFlowerField({ className = '' }: { className?: strin
     let raf = 0
     let last = performance.now()
     let slowFrames = 0
+    // Chế độ êm: tối đa 30 hình/giây. Ngưỡng "máy chậm" nới theo nhịp vẽ.
+    const minFrameMs = calm ? 1000 / 30 : 0
+    const slowDt = calm ? 1 / 22 : 1 / 35
     const loop = (now: number) => {
+      raf = requestAnimationFrame(loop)
+      if (now - last < minFrameMs - 1) return
       const dt = Math.min(0.05, (now - last) / 1000)
       last = now
       draw(dt)
-      if (dt > 1 / 35 && quality > 0.4) {
+      if (dt > slowDt && quality > 0.4) {
         if (++slowFrames > 45) { quality -= 0.2; slowFrames = 0; build() }
       } else {
         slowFrames = Math.max(0, slowFrames - 1)
       }
-      raf = requestAnimationFrame(loop)
     }
     const start = () => { if (!raf) { last = performance.now(); raf = requestAnimationFrame(loop) } }
     const stop = () => { cancelAnimationFrame(raf); raf = 0 }
@@ -600,7 +608,7 @@ export default function NightFlowerField({ className = '' }: { className?: strin
       document.removeEventListener('pointerleave', onLeave)
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [])
+  }, [calm])
 
   return (
     <div aria-hidden className={`pointer-events-none fixed inset-0 bg-[#03040a] ${className}`}>

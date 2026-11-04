@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { supabase, type PersonalLabel } from '@/lib/supabase'
 import { THEME_DEFAULTS, PERSONAL_THEME_KEY, readCachedTheme, claimThemeCache, syncPersonalTheme } from '@/lib/themeStore'
-import { ArrowLeft, Plus, Pencil, Trash2, X, Check } from 'lucide-react'
-import LoadingSpinner from '@/components/LoadingSpinner'
+import { Plus, Pencil, Trash2, Check, BarChart2 } from 'lucide-react'
 import { getContrastColors } from '@/lib/theme'
-import GlobalProfileHeader from '@/components/GlobalProfileHeader'
+import NightFlowerField from '@/components/NightFlowerField'
+import { DarkPanel, DarkModal, darkInput, NightTopBar, NavPill, PageTitle } from '@/components/NightUI'
 
 const PRESET_COLORS = [
   '#6c7ee1', '#92b9e3', '#ffc4a4', '#fba2d0',
@@ -97,133 +96,139 @@ export default function LabelsPage() {
     setDeleteId(null)
   }
 
-  if (loading) return <LoadingSpinner message="Đang tải..." fullscreen />
-
   const cc = getContrastColors(themeColor)
 
   return (
-    <main className="max-w-md mx-auto min-h-screen bg-gray-50 pb-10">
-      {/* Header */}
-      <div className="px-4 pt-6 pb-4" style={{ backgroundColor: themeColor }}>
-        <GlobalProfileHeader textColor={cc.text} />
-        <div className="flex items-center gap-3">
-          <Link href="/personal" style={{ color: cc.muted }}>
-            <ArrowLeft size={22} />
-          </Link>
-          <h1 className="font-bold text-lg flex-1" style={{ color: cc.text }}>Quản lý Label</h1>
-          <button onClick={openAdd}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-            style={{ backgroundColor: cc.iconBg, color: cc.text }}>
-            <Plus size={14} /> Thêm
-          </button>
+    // overflow-x-clip: quầng sáng của card tràn ra ngoài, không để nó tạo thanh cuộn ngang
+    <div className="min-h-screen bg-[#04050b] text-[#f5efe2] overflow-x-clip">
+      <NightFlowerField calm />
+
+      <div className="relative z-10 mx-auto max-w-3xl px-5 pb-24 sm:px-8">
+        <NightTopBar backHref="/personal">
+          <NavPill href="/personal/report" label="Báo cáo"><BarChart2 size={16} /></NavPill>
+        </NightTopBar>
+
+        <PageTitle
+          eyebrow="Cá nhân"
+          dotColor={themeColor}
+          title="Nhãn chi tiêu"
+          subtitle={loading ? 'Đang tải…' : `${labels.length} nhãn · dùng để phân loại các khoản thu chi`}
+        />
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {loading
+            ? [0, 1, 2, 3].map(i => (
+                <div key={i} className="h-[76px] animate-pulse rounded-3xl border border-white/10 bg-white/[0.04]" />
+              ))
+            : labels.map(label => (
+                <DarkPanel key={label.id} className="flex items-center gap-4 px-5 py-4 transition-colors hover:border-white/20">
+                  <span className="h-10 w-10 shrink-0 rounded-full"
+                    style={{ backgroundColor: label.color, boxShadow: `0 0 18px ${label.color}66` }} />
+                  <p className="line-clamp-2 min-w-0 flex-1 font-semibold [overflow-wrap:anywhere]">{label.name}</p>
+                  <div className="flex shrink-0 gap-0.5">
+                    <button onClick={() => openEdit(label)} aria-label="Sửa nhãn"
+                      className="rounded-lg p-2 text-[#f5efe2]/40 transition-colors hover:bg-white/10 hover:text-[#f5efe2]">
+                      <Pencil size={16} />
+                    </button>
+                    <button onClick={() => setDeleteId(label.id)} aria-label="Xoá nhãn"
+                      className="rounded-lg p-2 text-[#f5efe2]/40 transition-colors hover:bg-rose-400/15 hover:text-rose-300">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </DarkPanel>
+              ))}
+
+          {/* Thêm nhãn */}
+          {!loading && (
+            <button onClick={openAdd}
+              className="flex min-h-[76px] items-center gap-4 rounded-3xl border border-dashed border-white/20 bg-[#0b0f1f]/75 px-5 py-4 text-left transition-colors hover:border-white/40">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/20 text-[#f5efe2]/80">
+                <Plus size={20} />
+              </span>
+              <span>
+                <span className="block font-semibold">Thêm nhãn</span>
+                <span className="block text-sm text-[#f5efe2]/50">
+                  {labels.length === 0 ? 'Tạo nhãn đầu tiên, ví dụ Ăn uống, Đi lại' : 'Thêm một nhóm thu chi mới'}
+                </span>
+              </span>
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="px-4 py-5">
-        {labels.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
-            <p className="text-4xl mb-3">🏷️</p>
-            <p className="text-sm mb-4">Chưa có label nào</p>
-            <button onClick={openAdd}
-              className="px-5 py-2.5 rounded-xl text-sm font-medium transition-colors"
+      {/* ── Popup thêm / sửa ── */}
+      {showForm && (
+        <DarkModal title={editingId ? 'Sửa nhãn' : 'Thêm nhãn mới'} onClose={() => setShowForm(false)}>
+          <div className="space-y-5">
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-[#f5efe2]/70">Tên nhãn</span>
+              <input type="text" value={formName} onChange={e => setFormName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSave()} autoFocus
+                placeholder="Ví dụ: Ăn uống, Đi lại…" className={darkInput} />
+            </label>
+
+            <div>
+              <span className="mb-2 block text-sm font-medium text-[#f5efe2]/70">Màu sắc</span>
+              <div className="flex flex-wrap gap-3">
+                {PRESET_COLORS.map(color => (
+                  <button key={color} onClick={() => setFormColor(color)} aria-label={`Màu ${color}`}
+                    className={`grid h-9 w-9 place-items-center rounded-full transition-transform hover:scale-110 ${
+                      formColor === color ? 'ring-2 ring-[#f5efe2] ring-offset-2 ring-offset-[#0e1324]' : ''
+                    }`}
+                    style={{ backgroundColor: color }}>
+                    {formColor === color && <Check size={16} color={getContrastColors(color).text} />}
+                  </button>
+                ))}
+                {/* Màu tuỳ chỉnh */}
+                <label title="Chọn màu tuỳ chỉnh"
+                  className={`relative grid h-9 w-9 cursor-pointer place-items-center overflow-hidden rounded-full border-2 border-dashed transition-transform hover:scale-110 ${
+                    !PRESET_COLORS.includes(formColor)
+                      ? 'border-transparent ring-2 ring-[#f5efe2] ring-offset-2 ring-offset-[#0e1324]'
+                      : 'border-white/30'
+                  }`}
+                  style={!PRESET_COLORS.includes(formColor) ? { backgroundColor: formColor } : undefined}>
+                  {!PRESET_COLORS.includes(formColor)
+                    ? <Check size={16} color={getContrastColors(formColor).text} />
+                    : <Plus size={16} className="text-[#f5efe2]/60" />}
+                  <input type="color" value={formColor} onChange={e => setFormColor(e.target.value)}
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
+                </label>
+              </div>
+
+              <div className="mt-4 flex items-center gap-2">
+                <span className="text-xs text-[#f5efe2]/50">Xem trước:</span>
+                <span className="max-w-[14rem] truncate rounded-full px-3 py-1 text-xs font-semibold"
+                  style={{ backgroundColor: formColor, color: getContrastColors(formColor).text }}>
+                  {formName || 'Tên nhãn'}
+                </span>
+              </div>
+            </div>
+
+            {formError && <p className="text-sm text-rose-300">{formError}</p>}
+            <button onClick={handleSave} disabled={saving}
+              className="w-full rounded-full py-3.5 font-semibold transition-opacity disabled:opacity-50"
               style={{ backgroundColor: themeColor, color: cc.text }}>
-              Tạo label đầu tiên
+              {saving ? 'Đang lưu…' : 'Lưu'}
             </button>
           </div>
-        ) : (
-          <div className="space-y-2">
-            {labels.map(label => (
-              <div key={label.id} className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-3 shadow-sm">
-                <div className="w-9 h-9 rounded-full flex-shrink-0" style={{ backgroundColor: label.color }} />
-                <p className="flex-1 font-medium text-gray-900 text-sm">{label.name}</p>
-                <button onClick={() => openEdit(label)} className="p-1.5 text-gray-400 hover:text-indigo-500 transition-colors">
-                  <Pencil size={16} />
-                </button>
-                <button onClick={() => setDeleteId(label.id)} className="p-1.5 text-gray-400 hover:text-red-400 transition-colors">
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Add/Edit Modal */}
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-          onClick={e => { if (e.target === e.currentTarget) setShowForm(false) }}>
-          <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-bold text-gray-900">
-                {editingId ? 'Sửa label' : 'Thêm label mới'}
-              </h3>
-              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={22} />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tên label</label>
-                <input type="text" value={formName} onChange={e => setFormName(e.target.value)}
-                  placeholder="Ví dụ: Ăn uống, Đi lại..."
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Màu sắc</label>
-                <div className="flex flex-wrap gap-3">
-                  {PRESET_COLORS.map(color => (
-                    <button key={color} onClick={() => setFormColor(color)}
-                      className="w-9 h-9 rounded-full flex items-center justify-center transition-transform hover:scale-110"
-                      style={{ backgroundColor: color }}>
-                      {formColor === color && <Check size={16} color="white" />}
-                    </button>
-                  ))}
-                  {/* Custom color picker */}
-                  <label
-                    className="w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-transform hover:scale-110 border-2 border-dashed border-gray-300 overflow-hidden relative"
-                    title="Chọn màu tùy chỉnh"
-                    style={!PRESET_COLORS.includes(formColor) ? { borderColor: formColor, backgroundColor: formColor } : {}}>
-                    {!PRESET_COLORS.includes(formColor)
-                      ? <Check size={16} color="white" />
-                      : <span className="text-gray-400 text-xs font-bold">+</span>}
-                    <input type="color" value={formColor}
-                      onChange={e => setFormColor(e.target.value)}
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
-                  </label>
-                </div>
-                {/* Preview */}
-                <div className="mt-3 flex items-center gap-2">
-                  <span className="text-xs text-gray-500">Xem trước:</span>
-                  <span className="text-xs px-3 py-1 rounded-full font-medium text-white"
-                    style={{ backgroundColor: formColor }}>
-                    {formName || 'Tên label'}
-                  </span>
-                </div>
-              </div>
-              {formError && <p className="text-red-500 text-sm">{formError}</p>}
-              <button onClick={handleSave} disabled={saving}
-                className="w-full py-3.5 rounded-xl font-semibold transition-colors disabled:opacity-50"
-                style={{ backgroundColor: themeColor, color: cc.text }}>
-                {saving ? 'Đang lưu...' : 'Lưu'}
-              </button>
-            </div>
-          </div>
-        </div>
+        </DarkModal>
       )}
 
-      {/* Delete confirm */}
+      {/* ── Xác nhận xoá ── */}
       {deleteId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Xoá label?</h3>
-            <p className="text-gray-500 text-sm mb-6">Các chi tiêu dùng label này sẽ không còn được phân loại.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setDeleteId(null)} className="flex-1 px-4 py-3 rounded-xl font-medium text-gray-700 bg-gray-100">Huỷ</button>
-              <button onClick={handleDelete} className="flex-1 px-4 py-3 rounded-xl font-medium text-white bg-red-500">Xoá</button>
-            </div>
+        <DarkModal title="Xoá nhãn?" onClose={() => setDeleteId(null)} size="sm">
+          <p className="mb-6 text-sm text-[#f5efe2]/60">Các khoản thu chi đang dùng nhãn này sẽ không còn được phân loại.</p>
+          <div className="flex gap-3">
+            <button onClick={() => setDeleteId(null)}
+              className="flex-1 rounded-full border border-white/20 py-3 font-semibold text-[#f5efe2]/80 hover:bg-white/10">
+              Huỷ
+            </button>
+            <button onClick={handleDelete} className="flex-1 rounded-full bg-rose-500 py-3 font-semibold text-white hover:bg-rose-600">
+              Xoá
+            </button>
           </div>
-        </div>
+        </DarkModal>
       )}
-    </main>
+    </div>
   )
 }
