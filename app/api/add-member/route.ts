@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { getAdminClient, requireRoomAccess } from '@/lib/serverAuth'
 
 // This route uses the service role key to look up users by email
 // Add SUPABASE_SERVICE_ROLE_KEY to your environment variables
@@ -10,15 +10,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing roomId or username' }, { status: 400 })
   }
 
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!serviceKey) {
+  const adminClient = getAdminClient()
+  if (!adminClient) {
     return NextResponse.json({ error: 'Server config error' }, { status: 500 })
   }
 
-  const adminClient = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceKey
-  )
+  // Chỉ chủ phòng mới được thêm thành viên (giống RLS policy "room_members: owner can insert").
+  const access = await requireRoomAccess(request, adminClient, roomId)
+  if (access instanceof NextResponse) return access
+  if (!access.isOwner) {
+    return NextResponse.json({ error: 'Chỉ chủ phòng mới được thêm thành viên' }, { status: 403 })
+  }
 
   // Look up user by synthetic email
   const syntheticEmail = `${username.toLowerCase().trim().replace(/\s+/g, '')}@spendly.com`

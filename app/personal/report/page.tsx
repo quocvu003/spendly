@@ -63,7 +63,8 @@ export default function PersonalReportPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) { router.push('/'); return }
 
     const { data: profile } = await supabase.from('profiles').select('display_name, avatar_url').eq('id', user.id).single()

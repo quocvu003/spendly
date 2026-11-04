@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase, type Room } from '@/lib/supabase'
+import { readRoomsCache, writeRoomsCache, clearUserCaches } from '@/lib/roomsCache'
 import {
   Plus, LogOut, Home, BookOpen, ChevronRight, Settings, X, Pencil,
   Menu, ArrowRightCircle, BarChart2, Wallet, Users,
@@ -46,6 +47,7 @@ function RoomsList() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [displayName, setDisplayName] = useState('')
   const listRef = useRef<HTMLDivElement>(null)
+  const roomsLoadedRef = useRef(false)
 
   useEffect(() => {
     const savedDash = localStorage.getItem('spendly_dashboard_theme')
@@ -57,28 +59,10 @@ function RoomsList() {
   }, [])
 
   useEffect(() => {
-    async function load() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/'); return }
-      setCurrentUserId(user.id)
+    let cancelled = false
 
-      const { data: profile } = await supabase
-        .from('profiles').select('display_name').eq('id', user.id).single()
-      setDisplayName(profile?.display_name || user.email?.split('@')[0] || 'bạn')
-
-      const { data: memberOf } = await supabase
-        .from('room_members').select('room_id').eq('user_id', user.id)
-      const roomIds = (memberOf ?? []).map(m => m.room_id)
-
-      const { data } = roomIds.length > 0
-        ? await supabase.from('rooms').select('*').in('id', roomIds).order('created_at', { ascending: false })
-        : { data: [] }
-
-      const roomsData = (data as Room[]) ?? []
-      if (roomsData.length === 1 && mode !== 'list') {
-        router.replace(`/rooms/${roomsData[0].id}`); return
-      }
-
+    function showRooms(roomsData: Room[]) {
+      roomsLoadedRef.current = true
       setRooms(roomsData)
       const themes: Record<string, string> = {}
       roomsData.forEach(r => {
@@ -88,13 +72,61 @@ function RoomsList() {
       setRoomThemes(themes)
       setLoading(false)
     }
+
+    async function load() {
+      // Bước 1: đọc phiên đăng nhập có sẵn trong trình duyệt (không cần gọi mạng).
+      // An toàn ở phía client vì quyền truy cập dữ liệu do RLS của Supabase kiểm soát.
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
+      if (!user) { router.push('/'); return }
+      if (cancelled) return
+      setCurrentUserId(user.id)
+
+      // Bước 4: hiện ngay danh sách phòng đã lưu từ lần trước (nếu có).
+      // Bỏ qua khi chỉ có 1 phòng và không ở mode=list, vì khi đó trang sẽ chuyển thẳng vào phòng.
+      const cached = readRoomsCache(user.id)
+      if (cached && (cached.length !== 1 || mode === 'list')) showRooms(cached)
+
+      // Bước 3: tải tên hiển thị song song, không chặn danh sách phòng.
+      supabase.from('profiles').select('display_name').eq('id', user.id).single()
+        .then(({ data: profile }) => {
+          if (!cancelled) setDisplayName(profile?.display_name || user.email?.split('@')[0] || 'bạn')
+        })
+
+      // Bước 2: lấy phòng qua quan hệ room_members.room_id → rooms.id trong 1 query.
+      const { data, error } = await supabase
+        .from('room_members').select('rooms(*)').eq('user_id', user.id)
+      if (cancelled) return
+      if (error) {
+        if (!cached) setLoading(false)
+        return
+      }
+
+      const roomsData = ((data ?? []) as unknown as { rooms: Room | null }[])
+        .map(m => m.rooms)
+        .filter((r): r is Room => r !== null)
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+
+      writeRoomsCache(user.id, roomsData)
+      if (roomsData.length === 1 && mode !== 'list') {
+        router.replace(`/rooms/${roomsData[0].id}`); return
+      }
+      showRooms(roomsData)
+    }
     load()
+    return () => { cancelled = true }
   }, [router, mode])
+
+  // Giữ bản sao luôn khớp sau khi tạo phòng hoặc đổi tên phòng.
+  useEffect(() => {
+    if (roomsLoadedRef.current && currentUserId) writeRoomsCache(currentUserId, rooms)
+  }, [rooms, currentUserId])
 
   async function createRoom() {
     if (!roomName.trim()) return
     setCreating(true)
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     const { data, error } = await supabase
       .from('rooms').insert({ name: roomName.trim(), owner_id: user!.id }).select().single()
     if (!error && data) { setRooms(prev => [data, ...prev]); setRoomName(''); setShowCreate(false) }
@@ -131,6 +163,7 @@ function RoomsList() {
 
   async function logout() {
     localStorage.removeItem('spendly_saved_credentials')
+    if (currentUserId) clearUserCaches(currentUserId)
     await supabase.auth.signOut()
     router.push('/')
   }
