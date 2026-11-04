@@ -2,40 +2,23 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase, type PersonalLabel, type PersonalExpense } from '@/lib/supabase'
+import { supabase, type PersonalLabel, type PersonalExpense, type PersonalGoal } from '@/lib/supabase'
+import { currentPeriod, formatMoney, splitTotals, savingLabelIds, goalProgress, isSaving } from '@/lib/goals'
+import GoalProgressList from '@/components/GoalProgressList'
+import PersonalTransactionModal from '@/components/PersonalTransactionModal'
 import { THEME_DEFAULTS, PERSONAL_THEME_KEY, readCachedTheme, claimThemeCache, syncPersonalTheme, savePersonalTheme } from '@/lib/themeStore'
 import { format } from 'date-fns'
 import {
   Plus, Tag, BarChart2, ArrowUp, ArrowDown, Trash2, Pencil, Settings,
-  ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Receipt,
+  ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Receipt, PiggyBank,
 } from 'lucide-react'
 import { getContrastColors } from '@/lib/theme'
 import ProfileSettingsModal from '@/components/ProfileSettingsModal'
 import NightFlowerField from '@/components/NightFlowerField'
 import { GlowCard, DarkPanel, DarkModal, darkInput, NightTopBar, NavPill, PageTitle, Stat } from '@/components/NightUI'
 
-function formatMoney(n: number) {
-  return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + 'đ'
-}
-
-function getMonthRange() {
-  const now = new Date()
-  const day = now.getDate()
-  let from: Date, to: Date
-  if (day >= 10) {
-    // Từ ngày 10 tháng này đến ngày 9 tháng sau
-    from = new Date(now.getFullYear(), now.getMonth(), 10)
-    to = new Date(now.getFullYear(), now.getMonth() + 1, 9)
-  } else {
-    // Từ ngày 10 tháng trước đến ngày 9 tháng này
-    from = new Date(now.getFullYear(), now.getMonth() - 1, 10)
-    to = new Date(now.getFullYear(), now.getMonth(), 9)
-  }
-  return {
-    from: format(from, 'yyyy-MM-dd'),
-    to: format(to, 'yyyy-MM-dd'),
-  }
-}
+// Kỳ hiện tại: từ ngày 10 tháng này đến ngày 9 tháng sau
+const getMonthRange = () => currentPeriod()
 
 export default function PersonalPage() {
   const router = useRouter()
@@ -53,21 +36,18 @@ export default function PersonalPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const PAGE_SIZE = 10
 
-  const [showAdd, setShowAdd] = useState(false)
-  const [addAmount, setAddAmount] = useState('')
-  const [addDesc, setAddDesc] = useState('')
-  const [addDate, setAddDate] = useState(format(new Date(), 'yyyy-MM-dd'))
-  const [addLabelId, setAddLabelId] = useState('')
-  const [addType, setAddType] = useState<'expense' | 'income'>('expense')
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [addError, setAddError] = useState('')
+  // Popup thêm/sửa giao dịch: exp = null là thêm mới (nhiều dòng)
+  const [txModal, setTxModal] = useState<{ exp: PersonalExpense | null } | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [themeColor, setThemeColor] = useState('#059669')
   const [personalName, setPersonalName] = useState('Sổ cá nhân')
   const [showSettings, setShowSettings] = useState(false)
   const [avatar, setAvatar] = useState('')
   const [displayName, setDisplayName] = useState('User')
+
+  // Mục tiêu: luôn tính trên toàn bộ kỳ hiện tại, không phụ thuộc bộ lọc nhãn/ngày của danh sách
+  const [goals, setGoals] = useState<PersonalGoal[]>([])
+  const [periodExpenses, setPeriodExpenses] = useState<PersonalExpense[]>([])
 
   function handleThemeChange(color: string) {
     setThemeColor(color)
@@ -89,6 +69,16 @@ export default function PersonalPage() {
     setExpenses((data as PersonalExpense[]) ?? [])
   }, [])
 
+  const fetchPeriod = useCallback(async () => {
+    const p = currentPeriod()
+    const { data } = await supabase
+      .from('personal_expenses')
+      .select('*, label:personal_labels(*)')
+      .gte('date', p.from)
+      .lte('date', p.to)
+    setPeriodExpenses((data as PersonalExpense[]) ?? [])
+  }, [])
+
   useEffect(() => {
     async function load() {
       const { data: { session } } = await supabase.auth.getSession()
@@ -108,9 +98,17 @@ export default function PersonalPage() {
       }
       syncPersonalTheme(user.id, profile?.personal_theme, setThemeColor)
 
-      const { data } = await supabase.from('personal_labels').select('*').order('created_at')
+      const [{ data }, { data: goalData }] = await Promise.all([
+        supabase.from('personal_labels').select('*').order('created_at'),
+        // Chưa chạy migration mục tiêu thì truy vấn lỗi → coi như chưa có mục tiêu
+        supabase.from('personal_goals').select('*'),
+      ])
       setLabels((data as PersonalLabel[]) ?? [])
-      await fetchExpenses('all', defaultRange.from, defaultRange.to, 'date', 'desc')
+      setGoals((goalData as PersonalGoal[]) ?? [])
+      await Promise.all([
+        fetchExpenses('all', defaultRange.from, defaultRange.to, 'date', 'desc'),
+        fetchPeriod(),
+      ])
       setLoading(false)
     }
     load()
@@ -135,60 +133,13 @@ export default function PersonalPage() {
     fetchExpenses(filterLabel, from, to, sortField, sortOrder)
   }
 
-  function handleAmountChange(val: string) {
-    const d = val.replace(/\D/g, '')
-    setAddAmount(d ? parseInt(d).toLocaleString('vi-VN') : '')
-  }
+  function openAdd() { setTxModal({ exp: null }) }
+  function openEdit(exp: PersonalExpense) { setTxModal({ exp }) }
 
-  function openAdd() {
-    setEditingId(null)
-    setAddAmount('')
-    setAddDesc('')
-    setAddDate(format(new Date(), 'yyyy-MM-dd'))
-    setAddLabelId('')
-    setAddType('expense')
-    setAddError('')
-    setShowAdd(true)
-  }
-
-  function openEdit(exp: PersonalExpense) {
-    setEditingId(exp.id)
-    setAddAmount(exp.amount.toLocaleString('vi-VN'))
-    setAddDesc(exp.description)
-    setAddDate(exp.date)
-    setAddLabelId(exp.label_id || '')
-    setAddType(exp.type || 'expense')
-    setAddError('')
-    setShowAdd(true)
-  }
-
-  async function handleSave() {
-    if (!addAmount || !addDesc.trim()) { setAddError('Vui lòng điền đủ thông tin'); return }
-    const num = parseFloat(addAmount.replace(/\./g, '').replace(/,/g, ''))
-    if (isNaN(num) || num <= 0) { setAddError('Số tiền không hợp lệ'); return }
-    setSaving(true)
-    
-    if (editingId) {
-      const { error } = await supabase.from('personal_expenses')
-        .update({
-          amount: num, description: addDesc.trim(), date: addDate,
-          label_id: addLabelId || null, type: addType
-        })
-        .eq('id', editingId)
-      if (error) { setAddError(error.message); setSaving(false); return }
-    } else {
-      const { error } = await supabase.from('personal_expenses').insert({
-        user_id: userId,
-        amount: num, description: addDesc.trim(), date: addDate,
-        label_id: addLabelId || null,
-        type: addType,
-      })
-      if (error) { setAddError(error.message); setSaving(false); return }
-    }
-    
-    setShowAdd(false); setEditingId(null); setAddAmount(''); setAddDesc(''); setAddLabelId(''); setAddType('expense');
-    setAddDate(format(new Date(), 'yyyy-MM-dd')); setAddError(''); setSaving(false)
+  function handleTxSaved() {
+    setTxModal(null)
     fetchExpenses(filterLabel, filterFrom, filterTo, sortField, sortOrder)
+    fetchPeriod()
   }
 
   async function handleDelete() {
@@ -196,11 +147,22 @@ export default function PersonalPage() {
     await supabase.from('personal_expenses').delete().eq('id', deleteId)
     setDeleteId(null)
     fetchExpenses(filterLabel, filterFrom, filterTo, sortField, sortOrder)
+    fetchPeriod()
   }
 
-  const totalExpense = expenses.filter(e => e.type !== 'income').reduce((s, e) => s + e.amount, 0)
-  const totalIncome = expenses.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
-  const netTotal = totalIncome - totalExpense
+  // Tích luỹ = khoản của nhãn có mục tiêu tích luỹ (tiền chuyển sang thẻ tiết kiệm/đầu tư)
+  const savingIds = savingLabelIds(goals)
+  const totals = splitTotals(expenses, savingIds)
+  const totalIncome = totals.income
+  const netTotal = totals.net
+  const hasSaving = savingIds.size > 0 || totals.saving > 0
+
+  // Tiến độ mục tiêu trong kỳ hiện tại
+  const period = currentPeriod()
+  const goalItems = goalProgress(goals, labels, periodExpenses, period)
+  const periodTotals = splitTotals(periodExpenses, savingIds)
+
+
   const cc = getContrastColors(themeColor)
 
   const totalPages = Math.max(1, Math.ceil(expenses.length / PAGE_SIZE))
@@ -244,16 +206,39 @@ export default function PersonalPage() {
                 {netTotal >= 0 ? '+' : ''}{formatMoney(netTotal)}
               </p>
             )}
-            <div className="mt-6 grid grid-cols-2 gap-3">
+            {/* Còn lại = Thu vào − Chi tiêu − Tích luỹ */}
+            <div className={`mt-6 grid grid-cols-2 gap-3 ${hasSaving ? 'sm:grid-cols-3' : ''}`}>
               <Stat label="Thu vào" value={`+${formatMoney(totalIncome)}`} tone="text-emerald-300" loading={loading}>
                 <TrendingUp size={15} />
               </Stat>
-              <Stat label="Chi ra" value={`-${formatMoney(totalExpense)}`} tone="text-rose-300" loading={loading}>
+              <Stat label="Chi tiêu" value={`-${formatMoney(totals.spending)}`} tone="text-rose-300" loading={loading}>
                 <TrendingDown size={15} />
               </Stat>
+              {hasSaving && (
+                <div className="col-span-2 sm:col-span-1">
+                  <Stat label="Tích luỹ" value={`-${formatMoney(totals.saving)}`} tone="text-sky-300" loading={loading}>
+                    <PiggyBank size={15} />
+                  </Stat>
+                </div>
+              )}
             </div>
+            {hasSaving && !loading && totalIncome > 0 && (
+              <p className="mt-3 text-xs text-[#f5efe2]/50">
+                Tỉ lệ tích luỹ: <b className="font-semibold text-sky-300">{Math.round((totals.saving / totalIncome) * 100)}%</b> thu nhập
+              </p>
+            )}
           </div>
         </GlowCard>
+
+        {/* ── Mục tiêu kỳ này (luôn tính trên cả kỳ hiện tại) ── */}
+        <GoalProgressList
+          className="mt-6"
+          title="Mục tiêu kỳ này"
+          periodLabel={`${format(new Date(period.from), 'dd/MM')} – ${format(new Date(period.to), 'dd/MM')}`}
+          items={goalItems}
+          income={periodTotals.income}
+          loading={loading}
+        />
 
         {/* ── Bộ lọc ── */}
         <DarkPanel className="mt-6 p-5 sm:p-6">
@@ -336,12 +321,14 @@ export default function PersonalPage() {
             <ul className="divide-y divide-white/5">
               {pagedExpenses.map(exp => {
                 const income = exp.type === 'income'
+                const saving = isSaving(exp, savingIds)
                 return (
                   <li key={exp.id} className="flex items-start gap-3 px-5 py-4 transition-colors hover:bg-white/[0.03]">
-                    <span className={`mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full ${
-                      income ? 'bg-emerald-400/15 text-emerald-300' : 'bg-rose-400/15 text-rose-300'
+                    <span title={income ? 'Khoản thu' : saving ? 'Tích luỹ' : 'Chi tiêu'}
+                      className={`mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full ${
+                      income ? 'bg-emerald-400/15 text-emerald-300' : saving ? 'bg-sky-400/15 text-sky-300' : 'bg-rose-400/15 text-rose-300'
                     }`}>
-                      {income ? <TrendingUp size={15} /> : <TrendingDown size={15} />}
+                      {income ? <TrendingUp size={15} /> : saving ? <PiggyBank size={15} /> : <TrendingDown size={15} />}
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="line-clamp-2 font-semibold [overflow-wrap:anywhere]">{exp.description}</p>
@@ -356,7 +343,7 @@ export default function PersonalPage() {
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
-                      <span className={`font-bold tabular-nums ${income ? 'text-emerald-300' : ''}`}>
+                      <span className={`font-bold tabular-nums ${income ? 'text-emerald-300' : saving ? 'text-sky-300' : ''}`}>
                         {income ? '+' : '-'}{formatMoney(exp.amount)}
                       </span>
                       <div className="flex gap-0.5">
@@ -421,62 +408,19 @@ export default function PersonalPage() {
         <Plus size={20} /> Thêm
       </button>
 
-      {/* ── Popup thêm / sửa ── */}
-      {showAdd && (
-        <DarkModal title={editingId ? 'Sửa giao dịch' : 'Thêm giao dịch'} onClose={() => setShowAdd(false)}>
-          <div className="space-y-4">
-            <div className="flex rounded-xl border border-white/10 bg-white/5 p-1">
-              {(['expense', 'income'] as const).map(t => (
-                <button key={t} onClick={() => setAddType(t)}
-                  className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${
-                    addType === t
-                      ? `bg-white/10 ${t === 'expense' ? 'text-rose-300' : 'text-emerald-300'}`
-                      : 'text-[#f5efe2]/50 hover:text-[#f5efe2]'
-                  }`}>
-                  {t === 'expense' ? 'Khoản chi' : 'Khoản thu'}
-                </button>
-              ))}
-            </div>
-
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-[#f5efe2]/70">Số tiền</span>
-              <div className="relative">
-                <input type="text" inputMode="numeric" value={addAmount} onChange={e => handleAmountChange(e.target.value)}
-                  placeholder="0" autoFocus={!editingId}
-                  className={`${darkInput} pr-10 !text-2xl font-bold tabular-nums`} />
-                <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#f5efe2]/40">đ</span>
-              </div>
-            </label>
-
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-[#f5efe2]/70">Mô tả</span>
-              <input type="text" value={addDesc} onChange={e => setAddDesc(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSave()}
-                placeholder="Ví dụ: Cà phê, Xăng xe…" className={darkInput} />
-            </label>
-
-            <div className="grid grid-cols-2 gap-3">
-              <label className="min-w-0">
-                <span className="mb-1.5 block text-sm font-medium text-[#f5efe2]/70">Ngày</span>
-                <input type="date" value={addDate} onChange={e => setAddDate(e.target.value)} className={`${darkInput} !text-sm`} />
-              </label>
-              <label className="min-w-0">
-                <span className="mb-1.5 block text-sm font-medium text-[#f5efe2]/70">Nhãn</span>
-                <select value={addLabelId} onChange={e => setAddLabelId(e.target.value)} className={`${darkInput} !text-sm`}>
-                  <option value="">Không có</option>
-                  {labels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                </select>
-              </label>
-            </div>
-
-            {addError && <p className="text-sm text-rose-300">{addError}</p>}
-            <button onClick={handleSave} disabled={saving}
-              className="w-full rounded-full py-3.5 font-semibold transition-opacity disabled:opacity-50"
-              style={{ backgroundColor: themeColor, color: cc.text }}>
-              {saving ? 'Đang lưu…' : 'Lưu'}
-            </button>
-          </div>
-        </DarkModal>
+      {/* ── Popup thêm / sửa (thêm được nhiều giao dịch một lúc) ── */}
+      {txModal && (
+        <PersonalTransactionModal
+          userId={userId}
+          labels={labels}
+          goals={goals}
+          periodExpenses={periodExpenses}
+          period={period}
+          themeColor={themeColor}
+          transaction={txModal.exp}
+          onClose={() => setTxModal(null)}
+          onSaved={handleTxSaved}
+        />
       )}
 
       {/* ── Xác nhận xoá ── */}
