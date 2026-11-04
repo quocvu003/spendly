@@ -2,16 +2,15 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase, type PersonalLabel, type PersonalExpense } from '@/lib/supabase'
+import { supabase, type PersonalLabel, type PersonalExpense, type PersonalGoal } from '@/lib/supabase'
+import { formatMoney, splitTotals, savingLabelIds, goalProgress, isSaving } from '@/lib/goals'
+import GoalProgressList from '@/components/GoalProgressList'
 import { THEME_DEFAULTS, PERSONAL_THEME_KEY, readCachedTheme, claimThemeCache, syncPersonalTheme } from '@/lib/themeStore'
 import { format, subMonths, addMonths } from 'date-fns'
-import { ChevronLeft, ChevronRight, Tag, TrendingUp, TrendingDown, PieChart } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Tag, TrendingUp, TrendingDown, PieChart, PiggyBank } from 'lucide-react'
 import NightFlowerField from '@/components/NightFlowerField'
-import { GlowCard, DarkPanel, darkInput, NightTopBar, NavPill, PageTitle, Stat } from '@/components/NightUI'
+import { GlowCard, DarkPanel, darkInput, NightTopBar, NavPill, PageTitle, Stat, SectionHeader } from '@/components/NightUI'
 
-function formatMoney(n: number) {
-  return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + 'đ'
-}
 
 type LabelSummary = {
   label: PersonalLabel | null
@@ -34,7 +33,8 @@ export default function PersonalReportPage() {
   const [customTo, setCustomTo] = useState('')
   const [isCustom, setIsCustom] = useState(false)
   const [expenses, setExpenses] = useState<PersonalExpense[]>([])
-  const [labelSummaries, setLabelSummaries] = useState<LabelSummary[]>([])
+  const [labels, setLabels] = useState<PersonalLabel[]>([])
+  const [goals, setGoals] = useState<PersonalGoal[]>([])
   const [personalName, setPersonalName] = useState('Sổ cá nhân')
   const [themeColor, setThemeColor] = useState('#059669')
   const [avatar, setAvatar] = useState('')
@@ -75,34 +75,50 @@ export default function PersonalReportPage() {
     syncPersonalTheme(user.id, profile?.personal_theme, setThemeColor)
 
     const { from, to } = getRange()
-    const { data } = await supabase
-      .from('personal_expenses')
-      .select('*, label:personal_labels(*)')
-      .gte('date', from)
-      .lte('date', to)
-      .order('date', { ascending: false })
+    const [{ data }, { data: labelData }, { data: goalData }] = await Promise.all([
+      supabase
+        .from('personal_expenses')
+        .select('*, label:personal_labels(*)')
+        .gte('date', from)
+        .lte('date', to)
+        .order('date', { ascending: false }),
+      supabase.from('personal_labels').select('*'),
+      supabase.from('personal_goals').select('*'),
+    ])
     const list = (data as PersonalExpense[]) ?? []
     setExpenses(list)
-
-    // Build label summaries (expenses only)
-    const map = new Map<string, LabelSummary>()
-    list.filter(e => e.type !== 'income').forEach(exp => {
-      const key = exp.label_id ?? '__none__'
-      if (!map.has(key)) map.set(key, { label: exp.label ?? null, total: 0, count: 0 })
-      const s = map.get(key)!
-      s.total += exp.amount
-      s.count++
-    })
-    setLabelSummaries(Array.from(map.values()).sort((a, b) => b.total - a.total))
+    setLabels((labelData as PersonalLabel[]) ?? [])
+    setGoals((goalData as PersonalGoal[]) ?? [])
     setLoading(false)
   }, [getRange, router])
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  const totalExpense = expenses.filter(e => e.type !== 'income').reduce((s, e) => s + e.amount, 0)
-  const totalIncome = expenses.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
-  const netTotal = totalIncome - totalExpense
   const { from, to } = getRange()
+
+  // Thu vào / Chi tiêu / Tích luỹ (tích luỹ = khoản của nhãn có mục tiêu tích luỹ)
+  const savingIds = savingLabelIds(goals)
+  const totals = splitTotals(expenses, savingIds)
+  const totalIncome = totals.income
+  const totalExpense = totals.spending
+  const netTotal = totals.net
+  const hasSaving = savingIds.size > 0 || totals.saving > 0
+
+  // Cơ cấu chi tiêu: chỉ các khoản chi tiêu (không gồm tích luỹ), theo nhãn
+  const summaryMap = new Map<string, LabelSummary>()
+  for (const exp of expenses) {
+    if (exp.type === 'income' || isSaving(exp, savingIds)) continue
+    const key = exp.label_id ?? '__none__'
+    if (!summaryMap.has(key)) summaryMap.set(key, { label: exp.label ?? null, total: 0, count: 0 })
+    const sm = summaryMap.get(key)!
+    sm.total += exp.amount
+    sm.count++
+  }
+  const labelSummaries = Array.from(summaryMap.values()).sort((a, b) => b.total - a.total)
+  const limitByLabel = new Map(goals.filter(g => g.kind === 'limit').map(g => [g.label_id, g.amount]))
+
+  // Mục tiêu so với thực tế trong kỳ đang xem (chỉ ở chế độ theo tháng, vì mục tiêu đặt theo tháng)
+  const goalItems = goalProgress(goals, labels, expenses, { from, to })
 
   function prevMonth() { setCurrentMonth(m => subMonths(m, 1)) }
   function nextMonth() { setCurrentMonth(m => addMonths(m, 1)) }
@@ -183,16 +199,41 @@ export default function PersonalReportPage() {
                 {netTotal >= 0 ? '+' : ''}{formatMoney(netTotal)}
               </p>
             )}
-            <div className="mt-6 grid grid-cols-2 gap-3">
+            {/* Số dư = Tổng thu − Chi tiêu − Tích luỹ */}
+            <div className={`mt-6 grid grid-cols-2 gap-3 ${hasSaving ? 'sm:grid-cols-3' : ''}`}>
               <Stat label="Tổng thu" value={`+${formatMoney(totalIncome)}`} tone="text-emerald-300" loading={loading}>
                 <TrendingUp size={15} />
               </Stat>
-              <Stat label="Tổng chi" value={`-${formatMoney(totalExpense)}`} tone="text-rose-300" loading={loading}>
+              <Stat label="Chi tiêu" value={`-${formatMoney(totalExpense)}`} tone="text-rose-300" loading={loading}>
                 <TrendingDown size={15} />
               </Stat>
+              {hasSaving && (
+                <div className="col-span-2 sm:col-span-1">
+                  <Stat label="Tích luỹ" value={`-${formatMoney(totals.saving)}`} tone="text-sky-300" loading={loading}>
+                    <PiggyBank size={15} />
+                  </Stat>
+                </div>
+              )}
             </div>
+            {hasSaving && !loading && totalIncome > 0 && (
+              <p className="mt-3 text-xs text-[#f5efe2]/50">
+                Tỉ lệ tích luỹ: <b className="font-semibold text-sky-300">{Math.round((totals.saving / totalIncome) * 100)}%</b> thu nhập
+              </p>
+            )}
           </div>
         </GlowCard>
+
+        {/* ── Mục tiêu so với thực tế (theo tháng) ── */}
+        {!isCustom && (
+          <GoalProgressList
+            className="mt-6"
+            title="Mục tiêu"
+            periodLabel={`Tháng ${format(currentMonth, 'MM/yyyy')}`}
+            items={goalItems}
+            income={totalIncome}
+            loading={loading}
+          />
+        )}
 
         {!loading && expenses.length === 0 ? (
           <DarkPanel className="mt-6 flex flex-col items-center px-6 py-16 text-center">
@@ -231,6 +272,15 @@ export default function PersonalReportPage() {
                               <div className="shrink-0 text-right">
                                 <span className="text-sm font-bold tabular-nums">{formatMoney(s.total)}</span>
                                 <span className="ml-2 text-xs tabular-nums text-[#f5efe2]/50">{pct.toFixed(0)}%</span>
+                                {/* Nhãn có giới hạn chi (chế độ theo tháng): so với giới hạn */}
+                                {!isCustom && s.label && limitByLabel.has(s.label.id) && (() => {
+                                  const limit = limitByLabel.get(s.label!.id)!
+                                  return (
+                                    <span className={`block text-[11px] tabular-nums ${s.total > limit ? 'text-rose-300' : 'text-[#f5efe2]/45'}`}>
+                                      giới hạn {formatMoney(limit)}
+                                    </span>
+                                  )
+                                })()}
                               </div>
                             </div>
                             <div className="h-2 w-full rounded-full bg-white/10">
@@ -263,6 +313,7 @@ export default function PersonalReportPage() {
                 <ul className="divide-y divide-white/5">
                   {expenses.map(exp => {
                     const income = exp.type === 'income'
+                    const saving = isSaving(exp, savingIds)
                     return (
                       <li key={exp.id} className="flex items-start gap-3 px-5 py-3.5 sm:px-6">
                         <div className="min-w-0 flex-1">
@@ -277,7 +328,8 @@ export default function PersonalReportPage() {
                             )}
                           </div>
                         </div>
-                        <span className={`shrink-0 text-sm font-bold tabular-nums ${income ? 'text-emerald-300' : ''}`}>
+                        <span title={saving ? 'Tích luỹ' : undefined}
+                          className={`shrink-0 text-sm font-bold tabular-nums ${income ? 'text-emerald-300' : saving ? 'text-sky-300' : ''}`}>
                           {income ? '+' : '-'}{formatMoney(exp.amount)}
                         </span>
                       </li>
@@ -293,11 +345,3 @@ export default function PersonalReportPage() {
   )
 }
 
-function SectionHeader({ title, right }: { title: string; right?: string }) {
-  return (
-    <div className="flex items-end justify-between gap-3 border-b border-white/10 px-5 pb-4 pt-5 sm:px-6">
-      <h2 className="text-xl font-extrabold tracking-[-0.03em] sm:text-2xl">{title}</h2>
-      {right && <span className="shrink-0 text-sm tabular-nums text-[#f5efe2]/50">{right}</span>}
-    </div>
-  )
-}

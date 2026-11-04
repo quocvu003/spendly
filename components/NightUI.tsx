@@ -152,3 +152,13 @@ export function Stat({ label, value, tone, loading = false, children }: {
     </div>
   )
 }
+
+/** Dòng tiêu đề trên cùng của một khung tối */
+export function SectionHeader({ title, right }: { title: string; right?: React.ReactNode }) {
+  return (
+    <div className="flex items-end justify-between gap-3 border-b border-white/10 px-5 pb-4 pt-5 sm:px-6">
+      <h2 className="text-xl font-extrabold tracking-[-0.03em] sm:text-2xl">{title}</h2>
+      {right && <span className="shrink-0 text-sm tabular-nums text-[#f5efe2]/50">{right}</span>}
+    </div>
+  )
+}
