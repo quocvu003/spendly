@@ -14,8 +14,7 @@ import {
 } from 'lucide-react'
 import { getContrastColors } from '@/lib/theme'
 import ProfileSettingsModal from '@/components/ProfileSettingsModal'
-import NightFlowerField from '@/components/NightFlowerField'
-import { GlowCard, DarkPanel, DarkModal, darkInput, NightTopBar, NavPill, PageTitle, Stat } from '@/components/NightUI'
+import { ThemeCard, Panel, Modal, lightInput, TopBar, NavPill, PageTitle, Stat, themePageStyle } from '@/components/LightUI'
 
 // Kỳ hiện tại: từ ngày 10 tháng này đến ngày 9 tháng sau
 const getMonthRange = () => currentPeriod()
@@ -170,23 +169,20 @@ export default function PersonalPage() {
   const periodLabel = `${format(new Date(filterFrom), 'dd/MM')} – ${format(new Date(filterTo), 'dd/MM/yyyy')}`
 
   return (
-    // overflow-x-clip: quầng sáng của card tràn ra ngoài, không để nó tạo thanh cuộn ngang
-    <div className="min-h-screen bg-[#04050b] text-[#f5efe2] overflow-x-clip">
-      {/* Nền thung lũng hoa đêm, chế độ êm cho trang làm việc */}
-      <NightFlowerField calm />
+    <div className="min-h-screen text-slate-900" style={themePageStyle(themeColor)}>
 
       <div className="relative z-10 mx-auto max-w-3xl px-5 pb-32 sm:px-8">
-        <NightTopBar backHref="/rooms?mode=list">
+        <TopBar backHref="/rooms?mode=list">
           <NavPill href="/personal/labels" label="Nhãn"><Tag size={16} /></NavPill>
           <NavPill href="/personal/report" label="Báo cáo"><BarChart2 size={16} /></NavPill>
           <button onClick={() => setShowSettings(true)} aria-label="Cài đặt"
-            className="grid h-10 w-10 place-items-center overflow-hidden rounded-full border border-white/15 text-[#f5efe2]/80 transition-colors hover:bg-white/10">
+            className="grid h-10 w-10 place-items-center overflow-hidden rounded-full border border-slate-200 text-slate-700 transition-colors hover:bg-slate-100">
             {avatar
               // eslint-disable-next-line @next/next/no-img-element
               ? <img src={avatar} alt="" className="h-full w-full object-cover" />
               : <Settings size={17} />}
           </button>
-        </NightTopBar>
+        </TopBar>
 
         <PageTitle
           eyebrow="Cá nhân"
@@ -196,42 +192,43 @@ export default function PersonalPage() {
         />
 
         {/* ── Tổng kết kỳ ── */}
-        <GlowCard theme={themeColor} lift={false}>
+        <ThemeCard theme={themeColor}>
           <div className="p-6 sm:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#f5efe2]/50">Còn lại trong kỳ</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--on-theme-muted)]">Còn lại trong kỳ</p>
             {loading ? (
-              <div className="mt-3 h-12 w-56 animate-pulse rounded-xl bg-white/10" />
+              <div className="mt-3 h-12 w-56 animate-pulse rounded-xl bg-[var(--on-theme-soft)]" />
             ) : (
-              <p className={`mt-2 truncate text-4xl font-extrabold tabular-nums tracking-[-0.03em] sm:text-5xl ${netTotal < 0 ? 'text-rose-300' : ''}`}>
+              <p className={`mt-2 truncate text-4xl font-extrabold tabular-nums tracking-[-0.03em] sm:text-5xl`}>
                 {netTotal >= 0 ? '+' : ''}{formatMoney(netTotal)}
               </p>
             )}
             {/* Còn lại = Thu vào − Chi tiêu − Tích luỹ */}
             <div className={`mt-6 grid grid-cols-2 gap-3 ${hasSaving ? 'sm:grid-cols-3' : ''}`}>
-              <Stat label="Thu vào" value={`+${formatMoney(totalIncome)}`} tone="text-emerald-300" loading={loading}>
+              <Stat label="Thu vào" value={`+${formatMoney(totalIncome)}`} tone="text-emerald-600" loading={loading}>
                 <TrendingUp size={15} />
               </Stat>
-              <Stat label="Chi tiêu" value={`-${formatMoney(totals.spending)}`} tone="text-rose-300" loading={loading}>
+              <Stat label="Chi tiêu" value={`-${formatMoney(totals.spending)}`} tone="text-rose-600" loading={loading}>
                 <TrendingDown size={15} />
               </Stat>
               {hasSaving && (
                 <div className="col-span-2 sm:col-span-1">
-                  <Stat label="Tích luỹ" value={`-${formatMoney(totals.saving)}`} tone="text-sky-300" loading={loading}>
+                  <Stat label="Tích luỹ" value={`-${formatMoney(totals.saving)}`} tone="text-sky-600" loading={loading}>
                     <PiggyBank size={15} />
                   </Stat>
                 </div>
               )}
             </div>
             {hasSaving && !loading && totalIncome > 0 && (
-              <p className="mt-3 text-xs text-[#f5efe2]/50">
-                Tỉ lệ tích luỹ: <b className="font-semibold text-sky-300">{Math.round((totals.saving / totalIncome) * 100)}%</b> thu nhập
+              <p className="mt-3 text-xs text-[var(--on-theme-muted)]">
+                Tỉ lệ tích luỹ: <b className="font-bold">{Math.round((totals.saving / totalIncome) * 100)}%</b> thu nhập
               </p>
             )}
           </div>
-        </GlowCard>
+        </ThemeCard>
 
         {/* ── Mục tiêu kỳ này (luôn tính trên cả kỳ hiện tại) ── */}
         <GoalProgressList
+          theme={themeColor}
           className="mt-6"
           title="Mục tiêu kỳ này"
           periodLabel={`${format(new Date(period.from), 'dd/MM')} – ${format(new Date(period.to), 'dd/MM')}`}
@@ -241,17 +238,17 @@ export default function PersonalPage() {
         />
 
         {/* ── Bộ lọc ── */}
-        <DarkPanel className="mt-6 p-5 sm:p-6">
+        <Panel theme={themeColor} className="mt-6 p-5 sm:p-6">
           <div className="grid grid-cols-2 gap-3">
             <label className="min-w-0">
-              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.16em] text-[#f5efe2]/50">Từ ngày</span>
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Từ ngày</span>
               <input type="date" value={filterFrom} onChange={e => handleDateChange(e.target.value, filterTo)}
-                className={`${darkInput} !py-2.5 !text-sm`} />
+                className={`${lightInput} !py-2.5 !text-sm`} />
             </label>
             <label className="min-w-0">
-              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.16em] text-[#f5efe2]/50">Đến ngày</span>
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Đến ngày</span>
               <input type="date" value={filterTo} onChange={e => handleDateChange(filterFrom, e.target.value)}
-                className={`${darkInput} !py-2.5 !text-sm`} />
+                className={`${lightInput} !py-2.5 !text-sm`} />
             </label>
           </div>
 
@@ -261,19 +258,19 @@ export default function PersonalPage() {
               Tất cả
             </Chip>
             {labels.map(l => (
-              <Chip key={l.id} active={filterLabel === l.id} onClick={() => handleFilterLabel(l.id)} activeBg={l.color} activeText="#fff" dot={l.color}>
+              <Chip key={l.id} active={filterLabel === l.id} onClick={() => handleFilterLabel(l.id)} activeBg={l.color} activeText={getContrastColors(l.color).text} dot={l.color}>
                 {l.name}
               </Chip>
             ))}
           </div>
 
           <div className="mt-4 flex items-center justify-between gap-3">
-            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[#f5efe2]/50">Sắp xếp</span>
-            <div className="flex rounded-full border border-white/10 bg-white/5 p-1">
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Sắp xếp</span>
+            <div className="flex rounded-full border border-slate-200 bg-slate-50 p-1">
               {(['date', 'amount'] as const).map(f => (
                 <button key={f} onClick={() => handleSort(f)}
                   className={`flex items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
-                    sortField === f ? 'bg-[#f5efe2] text-[#151510]' : 'text-[#f5efe2]/60 hover:text-[#f5efe2]'
+                    sortField === f ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-900'
                   }`}>
                   {f === 'date' ? 'Ngày' : 'Số tiền'}
                   {sortField === f && (sortOrder === 'desc' ? <ArrowDown size={12} /> : <ArrowUp size={12} />)}
@@ -281,36 +278,36 @@ export default function PersonalPage() {
               ))}
             </div>
           </div>
-        </DarkPanel>
+        </Panel>
 
-        {/* ── Danh sách giao dịch (tiêu đề nằm trong khung để luôn đọc được trên nền hoa) ── */}
-        <DarkPanel className="mt-6 overflow-hidden">
-          <div className="flex items-end justify-between border-b border-white/10 px-5 pb-4 pt-5 sm:px-6">
+        {/* ── Danh sách giao dịch ── */}
+        <Panel theme={themeColor} className="mt-6 overflow-hidden">
+          <div className="flex items-end justify-between border-b border-slate-200 px-5 pb-4 pt-5 sm:px-6">
             <h2 className="text-xl font-extrabold tracking-[-0.03em] sm:text-2xl">Giao dịch</h2>
             {!loading && expenses.length > 0 && (
-              <span className="text-sm text-[#f5efe2]/50">{expenses.length} khoản</span>
+              <span className="text-sm text-slate-500">{expenses.length} khoản</span>
             )}
           </div>
           {loading ? (
-            <div className="divide-y divide-white/5">
+            <div className="divide-y divide-slate-100">
               {[0, 1, 2, 3].map(i => (
                 <div key={i} className="flex items-center gap-3 px-5 py-4">
-                  <div className="h-2.5 w-2.5 rounded-full bg-white/10" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-slate-100" />
                   <div className="flex-1 space-y-2">
-                    <div className="h-3.5 w-2/5 animate-pulse rounded bg-white/10" />
-                    <div className="h-3 w-1/4 animate-pulse rounded bg-white/5" />
+                    <div className="h-3.5 w-2/5 animate-pulse rounded bg-slate-100" />
+                    <div className="h-3 w-1/4 animate-pulse rounded bg-slate-50" />
                   </div>
-                  <div className="h-4 w-20 animate-pulse rounded bg-white/10" />
+                  <div className="h-4 w-20 animate-pulse rounded bg-slate-100" />
                 </div>
               ))}
             </div>
           ) : expenses.length === 0 ? (
             <div className="flex flex-col items-center px-6 py-16 text-center">
-              <span className="grid h-14 w-14 place-items-center rounded-2xl border border-white/15 text-[#f5efe2]/60">
+              <span className="grid h-14 w-14 place-items-center rounded-2xl border border-slate-200 text-slate-500">
                 <Receipt size={24} />
               </span>
               <p className="mt-4 font-semibold">Chưa có giao dịch nào trong kỳ này</p>
-              <p className="mt-1 text-sm text-[#f5efe2]/50">Ghi lại khoản thu chi đầu tiên để theo dõi.</p>
+              <p className="mt-1 text-sm text-slate-500">Ghi lại khoản thu chi đầu tiên để theo dõi.</p>
               <button onClick={openAdd}
                 className="mt-5 rounded-full px-5 py-2.5 text-sm font-semibold"
                 style={{ backgroundColor: themeColor, color: cc.text }}>
@@ -318,41 +315,41 @@ export default function PersonalPage() {
               </button>
             </div>
           ) : (
-            <ul className="divide-y divide-white/5">
+            <ul className="divide-y divide-slate-100">
               {pagedExpenses.map(exp => {
                 const income = exp.type === 'income'
                 const saving = isSaving(exp, savingIds)
                 return (
-                  <li key={exp.id} className="flex items-start gap-3 px-5 py-4 transition-colors hover:bg-white/[0.03]">
+                  <li key={exp.id} className="flex items-start gap-3 px-5 py-4 transition-colors hover:bg-slate-50">
                     <span title={income ? 'Khoản thu' : saving ? 'Tích luỹ' : 'Chi tiêu'}
                       className={`mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full ${
-                      income ? 'bg-emerald-400/15 text-emerald-300' : saving ? 'bg-sky-400/15 text-sky-300' : 'bg-rose-400/15 text-rose-300'
+                      income ? 'bg-emerald-50 text-emerald-600' : saving ? 'bg-sky-50 text-sky-600' : 'bg-rose-50 text-rose-600'
                     }`}>
                       {income ? <TrendingUp size={15} /> : saving ? <PiggyBank size={15} /> : <TrendingDown size={15} />}
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="line-clamp-2 font-semibold [overflow-wrap:anywhere]">{exp.description}</p>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[#f5efe2]/50">
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                         <span>{format(new Date(exp.date), 'dd/MM/yyyy')}</span>
                         {exp.label && (
-                          <span className="max-w-[10rem] truncate rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
-                            style={{ backgroundColor: exp.label.color }}>
+                          <span className="max-w-[10rem] truncate rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                            style={{ backgroundColor: exp.label.color, color: getContrastColors(exp.label.color).text }}>
                             {exp.label.name}
                           </span>
                         )}
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
-                      <span className={`font-bold tabular-nums ${income ? 'text-emerald-300' : saving ? 'text-sky-300' : ''}`}>
+                      <span className={`font-bold tabular-nums ${income ? 'text-emerald-600' : saving ? 'text-sky-600' : ''}`}>
                         {income ? '+' : '-'}{formatMoney(exp.amount)}
                       </span>
                       <div className="flex gap-0.5">
                         <button onClick={() => openEdit(exp)} aria-label="Sửa"
-                          className="rounded-lg p-1.5 text-[#f5efe2]/35 transition-colors hover:bg-white/10 hover:text-[#f5efe2]">
+                          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-900">
                           <Pencil size={14} />
                         </button>
                         <button onClick={() => setDeleteId(exp.id)} aria-label="Xoá"
-                          className="rounded-lg p-1.5 text-[#f5efe2]/35 transition-colors hover:bg-rose-400/15 hover:text-rose-300">
+                          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600">
                           <Trash2 size={14} />
                         </button>
                       </div>
@@ -362,7 +359,7 @@ export default function PersonalPage() {
               })}
             </ul>
           )}
-        </DarkPanel>
+        </Panel>
 
         {/* ── Phân trang ── */}
         {!loading && totalPages > 1 && (
@@ -383,11 +380,11 @@ export default function PersonalPage() {
               }
               return pages.map((p, i) =>
                 p === '...' ? (
-                  <span key={`ellipsis-${i}`} className="grid h-9 w-9 place-items-center text-sm text-[#f5efe2]/40">…</span>
+                  <span key={`ellipsis-${i}`} className="grid h-9 w-9 place-items-center text-sm text-slate-400">…</span>
                 ) : (
                   <button key={p} onClick={() => setCurrentPage(p)}
                     className={`grid h-9 w-9 place-items-center rounded-full text-sm font-semibold transition-colors ${
-                      p === currentPage ? 'bg-[#f5efe2] text-[#151510]' : 'border border-white/10 text-[#f5efe2]/70 hover:bg-white/10'
+                      p === currentPage ? 'bg-slate-900 text-white' : 'border border-slate-200 text-slate-600 hover:bg-slate-100'
                     }`}>
                     {p}
                   </button>
@@ -425,18 +422,18 @@ export default function PersonalPage() {
 
       {/* ── Xác nhận xoá ── */}
       {deleteId && (
-        <DarkModal title="Xoá giao dịch?" onClose={() => setDeleteId(null)} size="sm">
-          <p className="mb-6 text-sm text-[#f5efe2]/60">Hành động này không thể hoàn tác.</p>
+        <Modal title="Xoá giao dịch?" onClose={() => setDeleteId(null)} size="sm">
+          <p className="mb-6 text-sm text-slate-500">Hành động này không thể hoàn tác.</p>
           <div className="flex gap-3">
             <button onClick={() => setDeleteId(null)}
-              className="flex-1 rounded-full border border-white/20 py-3 font-semibold text-[#f5efe2]/80 hover:bg-white/10">
+              className="flex-1 rounded-full border border-slate-300 py-3 font-semibold text-slate-700 hover:bg-slate-100">
               Huỷ
             </button>
             <button onClick={handleDelete} className="flex-1 rounded-full bg-rose-500 py-3 font-semibold text-white hover:bg-rose-600">
               Xoá
             </button>
           </div>
-        </DarkModal>
+        </Modal>
       )}
 
       {showSettings && (
@@ -459,7 +456,7 @@ function Chip({ active, onClick, activeBg, activeText, dot, children }: {
   return (
     <button onClick={onClick}
       className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
-        active ? 'border-transparent' : 'border-white/15 bg-white/5 text-[#f5efe2]/70 hover:text-[#f5efe2]'
+        active ? 'border-transparent' : 'border-slate-200 bg-slate-50 text-slate-600 hover:text-slate-900'
       }`}
       style={active ? { backgroundColor: activeBg, color: activeText } : undefined}>
       {dot && !active && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: dot }} />}
@@ -473,7 +470,7 @@ function PageButton({ onClick, disabled, label, children }: {
 }) {
   return (
     <button onClick={onClick} disabled={disabled} aria-label={label}
-      className="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-[#f5efe2]/70 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30">
+      className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30">
       {children}
     </button>
   )

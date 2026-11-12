@@ -1,5 +1,5 @@
 import { format } from 'date-fns'
-import type { PersonalExpense, PersonalGoal, PersonalLabel } from '@/lib/supabase'
+import type { GoalKind, PersonalExpense, PersonalGoal, PersonalLabel } from '@/lib/supabase'
 
 // ── Kỳ chi tiêu: từ ngày 10 tháng này đến ngày 9 tháng sau ────────────────
 export type Period = { from: string; to: string } // yyyy-MM-dd
@@ -50,7 +50,18 @@ export function splitTotals(expenses: PersonalExpense[], savingIds: Set<string>)
 }
 
 // ── Tiến độ mục tiêu ───────────────────────────────────────────────────────
-export type GoalStatus = 'ok' | 'warn' | 'over' | 'progress' | 'done'
+// ok/warn/over: giới hạn chi · progress/done: tích luỹ và chỉ tiêu · missed: chỉ tiêu, hết kỳ mà chưa đủ
+export type GoalStatus = 'ok' | 'warn' | 'over' | 'progress' | 'done' | 'missed'
+
+/** Tên các loại mục tiêu hiển thị trên giao diện */
+export const GOAL_KIND_NAME: Record<GoalKind, string> = {
+  limit: 'Giới hạn chi',
+  payment: 'Chỉ tiêu',
+  target: 'Tích luỹ',
+}
+
+// Thứ tự hiển thị: giới hạn chi (đáng chú ý nhất), chỉ tiêu, rồi tích luỹ
+const KIND_ORDER: Record<GoalKind, number> = { limit: 0, payment: 1, target: 2 }
 
 export type GoalProgress = {
   goal: PersonalGoal
@@ -76,6 +87,8 @@ export function goalProgress(
     sumByLabel.set(e.label_id, (sumByLabel.get(e.label_id) ?? 0) + e.amount)
   }
   const elapsed = periodElapsed(period, today)
+  // Kỳ đã kết thúc (xem báo cáo tháng trước): chỉ tiêu chưa đủ là Không đạt
+  const ended = today.getTime() >= parseDay(period.to).getTime() + 86_400_000
 
   return goals
     .map(goal => {
@@ -83,7 +96,8 @@ export function goalProgress(
       const ratio = goal.amount > 0 ? actual / goal.amount : 0
       let status: GoalStatus
       if (goal.kind === 'limit') status = ratio > 1 ? 'over' : ratio >= 0.8 ? 'warn' : 'ok'
-      else status = ratio >= 1 ? 'done' : 'progress'
+      else if (ratio >= 1) status = 'done'
+      else status = goal.kind === 'payment' && ended ? 'missed' : 'progress'
       // Chi nhanh: đã dùng nhiều hơn phần thời gian đã qua ít nhất 15 điểm %, và đã dùng từ 30%
       const fastPace = goal.kind === 'limit' && status !== 'over' && elapsed !== null
         && ratio >= 0.3 && ratio > elapsed + 0.15
@@ -97,8 +111,8 @@ export function goalProgress(
         fastPace,
       }
     })
-    // Giới hạn chi trước (đáng chú ý hơn), rồi tích luỹ; trong mỗi nhóm xếp theo % giảm dần
-    .sort((a, b) => (a.goal.kind === b.goal.kind ? b.pct - a.pct : a.goal.kind === 'limit' ? -1 : 1))
+    // Theo loại (giới hạn chi, chỉ tiêu, tích luỹ); trong mỗi nhóm xếp theo % giảm dần
+    .sort((a, b) => KIND_ORDER[a.goal.kind] - KIND_ORDER[b.goal.kind] || b.pct - a.pct)
 }
 
 export function formatMoney(n: number) {
