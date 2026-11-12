@@ -1,10 +1,9 @@
 'use client'
 
 // Các thành phần giao diện tông tối dùng chung cho các trang trên nền thung lũng hoa đêm
-// (/rooms, /personal): logo, card phát sáng, ô biểu tượng, nút mũi tên tròn, popup tối.
+// (/rooms): logo, card phát sáng, ô biểu tượng, nút mũi tên tròn, popup tối.
 
-import Link from 'next/link'
-import { X, ArrowRight, ArrowLeft } from 'lucide-react'
+import { X, ArrowRight } from 'lucide-react'
 import PulsatingBorder from '@/components/PulsatingBorder'
 import { getContrastColors, getGlowColors } from '@/lib/theme'
 
@@ -37,15 +36,6 @@ export function GlowCard({ theme, className = '', lift = true, children }: {
       >
         {children}
       </div>
-    </div>
-  )
-}
-
-/** Card nền tối không có viền phát sáng (cho khối nội dung dài như danh sách, bộ lọc) */
-export function DarkPanel({ className = '', children }: { className?: string; children: React.ReactNode }) {
-  return (
-    <div className={`min-w-0 rounded-3xl border border-white/10 bg-[#0b0f1f]/[0.92] ${className}`}>
-      {children}
     </div>
   )
 }
@@ -88,77 +78,6 @@ export function DarkModal({ title, onClose, children, size = 'md' }: {
         </div>
         {children}
       </div>
-    </div>
-  )
-}
-
-/** Thanh trên cùng của trang con: nút quay lại + logo, bên phải tuỳ trang */
-export function NightTopBar({ backHref, children }: { backHref: string; children?: React.ReactNode }) {
-  return (
-    <header className="flex items-center justify-between gap-3 py-5 sm:py-7">
-      <div className="flex min-w-0 items-center gap-3">
-        <Link href={backHref} aria-label="Quay lại"
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/15 text-[#f5efe2]/80 transition-colors hover:bg-white/10">
-          <ArrowLeft size={18} />
-        </Link>
-        <Link href="/rooms?mode=list" className="hidden sm:block"><Wordmark /></Link>
-      </div>
-      {children && <nav className="flex items-center gap-2">{children}</nav>}
-    </header>
-  )
-}
-
-/** Nút viên thuốc có biểu tượng; chữ ẩn trên điện thoại */
-export function NavPill({ href, label, children }: { href: string; label: string; children: React.ReactNode }) {
-  return (
-    <Link href={href} aria-label={label}
-      className="inline-flex h-10 items-center gap-2 rounded-full border border-white/15 px-3 text-sm font-semibold text-[#f5efe2]/85 transition-colors hover:bg-white/10 sm:px-4">
-      {children}
-      <span className="hidden sm:inline">{label}</span>
-    </Link>
-  )
-}
-
-/** Khối tiêu đề trang: nhãn nhỏ có chấm màu, tiêu đề lớn (tối đa 2 dòng), dòng phụ */
-export function PageTitle({ eyebrow, dotColor, title, subtitle }: {
-  eyebrow: string; dotColor: string; title: React.ReactNode; subtitle?: React.ReactNode
-}) {
-  return (
-    <section className="pb-8 pt-6 sm:pt-10">
-      <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#f5efe2]/60">
-        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: dotColor }} />
-        {eyebrow}
-      </p>
-      <h1 className="line-clamp-2 text-4xl font-extrabold leading-[1.02] tracking-[-0.035em] [overflow-wrap:anywhere] sm:text-6xl">
-        {title}
-      </h1>
-      {subtitle && <p className="mt-3 text-sm text-[#f5efe2]/60 sm:text-base">{subtitle}</p>}
-    </section>
-  )
-}
-
-/** Ô số liệu nhỏ trong card tổng kết */
-export function Stat({ label, value, tone, loading = false, children }: {
-  label: string; value: string; tone: string; loading?: boolean; children?: React.ReactNode
-}) {
-  return (
-    <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-      <p className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] ${tone}`}>
-        {children}{label}
-      </p>
-      {loading
-        ? <div className="mt-2 h-6 w-24 animate-pulse rounded bg-white/10" />
-        : <p className="mt-1.5 truncate text-lg font-bold tabular-nums sm:text-xl">{value}</p>}
-    </div>
-  )
-}
-
-/** Dòng tiêu đề trên cùng của một khung tối */
-export function SectionHeader({ title, right }: { title: string; right?: React.ReactNode }) {
-  return (
-    <div className="flex items-end justify-between gap-3 border-b border-white/10 px-5 pb-4 pt-5 sm:px-6">
-      <h2 className="text-xl font-extrabold tracking-[-0.03em] sm:text-2xl">{title}</h2>
-      {right && <span className="shrink-0 text-sm tabular-nums text-[#f5efe2]/50">{right}</span>}
     </div>
   )
 }
