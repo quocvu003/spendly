@@ -169,7 +169,7 @@ export default function PersonalPage() {
   const periodLabel = `${format(new Date(filterFrom), 'dd/MM')} – ${format(new Date(filterTo), 'dd/MM/yyyy')}`
 
   return (
-    <div className="min-h-screen text-slate-900" style={themePageStyle(themeColor)}>
+    <div className="min-h-screen overflow-x-clip text-slate-900" style={themePageStyle(themeColor)}>
 
       <div className="relative z-10 mx-auto max-w-3xl px-5 pb-32 sm:px-8">
         <TopBar backHref="/rooms?mode=list">

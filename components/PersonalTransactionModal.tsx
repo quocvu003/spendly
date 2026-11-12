@@ -11,6 +11,7 @@ import { format } from 'date-fns'
 import { Check, Minus, Plus } from 'lucide-react'
 import { supabase, type PersonalExpense, type PersonalGoal, type PersonalLabel } from '@/lib/supabase'
 import { getContrastColors } from '@/lib/theme'
+import { canAutoFocus } from '@/lib/device'
 import { formatMoney, type Period } from '@/lib/goals'
 import { Modal, lightInput } from '@/components/LightUI'
 
@@ -40,6 +41,8 @@ export default function PersonalTransactionModal({
   onSaved: () => void
 }) {
   const isEdit = !!transaction
+  // Chỉ tự focus ô Mô tả trên máy tính; trên điện thoại sẽ bật bàn phím và làm lệch trang (xem lib/device)
+  const [autoFocusFirst] = useState(canAutoFocus)
   const cc = getContrastColors(themeColor)
 
   const [type, setType] = useState<'expense' | 'income'>(transaction?.type ?? 'expense')
@@ -175,7 +178,7 @@ export default function PersonalTransactionModal({
                     <input type="text" data-desc={r.key} value={r.description}
                       onChange={e => updateRow(r.key, { description: e.target.value })}
                       placeholder={i === 0 ? 'vd: Cà phê' : 'Mô tả'}
-                      autoFocus={i === 0 && !isEdit}
+                      autoFocus={i === 0 && !isEdit && autoFocusFirst}
                       className={`${lightInput} !px-3 !py-2.5 !text-sm ${border}`} />
                     <div className="relative">
                       <input type="text" inputMode="numeric" value={r.amount}

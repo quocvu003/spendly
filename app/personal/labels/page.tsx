@@ -143,7 +143,7 @@ export default function LabelsPage() {
   const cc = getContrastColors(themeColor)
 
   return (
-    <div className="min-h-screen text-slate-900" style={themePageStyle(themeColor)}>
+    <div className="min-h-screen overflow-x-clip text-slate-900" style={themePageStyle(themeColor)}>
 
       <div className="relative z-10 mx-auto max-w-3xl px-5 pb-24 sm:px-8">
         <TopBar backHref="/personal">

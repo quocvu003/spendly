@@ -93,7 +93,8 @@ export function Modal({ title, onClose, children, size = 'md' }: {
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className={`max-h-[90vh] w-full overflow-y-auto rounded-3xl border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl ${size === 'sm' ? 'max-w-sm' : 'max-w-md'}`}>
+      {/* min-w-0 + overflow-x-hidden: nội dung (vd ô ngày của iOS) không thể đẩy popup rộng hơn màn hình */}
+      <div className={`max-h-[90vh] w-full min-w-0 overflow-y-auto overflow-x-hidden rounded-3xl border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl ${size === 'sm' ? 'max-w-sm' : 'max-w-md'}`}>
         <div className="mb-5 flex items-center justify-between gap-4">
           <h3 className="text-lg font-bold">{title}</h3>
           <button onClick={onClose} aria-label="Đóng" className="text-slate-400 hover:text-slate-700"><X size={22} /></button>
