@@ -154,13 +154,15 @@ export function Stat({ label, value, tone, loading = false, children }: {
   label: string; value: string; tone: string; loading?: boolean; children?: React.ReactNode
 }) {
   return (
-    <div className="min-w-0 rounded-2xl bg-white p-4 text-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.12)]">
+    // [container-type:inline-size]: cỡ chữ số tiền tính theo bề ngang ô (cqi), để ô hẹp trên điện thoại
+    // vẫn hiện đủ "+11.569.000đ" thay vì bị cắt "…"; ô rộng thì tối đa 1.25rem như cũ
+    <div className="min-w-0 rounded-2xl bg-white p-3 text-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.12)] [container-type:inline-size] sm:p-4">
       <p className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] ${tone}`}>
         {children}{label}
       </p>
       {loading
         ? <div className="mt-2 h-6 w-24 animate-pulse rounded bg-slate-100" />
-        : <p className="mt-1.5 truncate text-lg font-bold tabular-nums sm:text-xl">{value}</p>}
+        : <p className="mt-1.5 truncate text-[clamp(0.75rem,12.5cqi,1.25rem)] font-bold tabular-nums tracking-[-0.01em]">{value}</p>}
     </div>
   )
 }
