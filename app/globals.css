@@ -4,3 +4,32 @@
 
 * { -webkit-tap-highlight-color: transparent; }
 body { overscroll-behavior: none; }
+
+/* ── Chỉ cho iOS (Safari và mọi trình duyệt trên iPhone/iPad đều dùng WebKit) ──
+   -webkit-touch-callout chỉ WebKit trên iOS hỗ trợ, nên Android và máy tính không bị ảnh hưởng. */
+@supports (-webkit-touch-callout: none) {
+  /* iOS tự phóng to trang khi bấm vào ô nhập có chữ nhỏ hơn 16px và không thu nhỏ lại.
+     :root tăng độ ưu tiên để thắng các lớp !text-sm của Tailwind. */
+  :root input,
+  :root select,
+  :root textarea {
+    font-size: max(16px, 1em) !important;
+  }
+
+  /* Ô chọn ngày: iOS vẽ theo kiểu riêng, có bề ngang tối thiểu theo chữ ngày và bỏ qua width: 100%,
+     nên hai ô "Từ ngày / Đến ngày" cạnh nhau tràn ra ngoài khung. */
+  input[type='date'] {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    min-height: 2.75rem;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+  input[type='date']::-webkit-date-and-time-value {
+    text-align: left;
+    margin: 0;
+  }
+}

@@ -113,6 +113,7 @@ function GoalRow({ item }: { item: GoalProgress }) {
 
   return (
     <li className="px-5 py-4 sm:px-6">
+      {/* Mọi dòng cùng bố cục: tên + loại + % ở dòng 1, số tiền ở dòng 2 (tên nhãn không bị số tiền chèn mất chỗ) */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: label?.color ?? '#9ca3af' }} />
@@ -121,21 +122,20 @@ function GoalRow({ item }: { item: GoalProgress }) {
             {isLimit ? 'Giới hạn' : GOAL_KIND_NAME[goal.kind]}
           </span>
         </div>
-        <span className="shrink-0 text-right text-sm tabular-nums">
-          <b className="font-bold">{formatMoney(actual)}</b>
-          <span className="text-slate-500"> / {formatMoney(goal.amount)}</span>
-        </span>
+        <span className="shrink-0 text-sm font-bold tabular-nums" style={{ color }}>{Math.round(pct)}%</span>
       </div>
+
+      <p className="mt-1 pl-[18px] text-sm tabular-nums">
+        <b className="font-bold">{formatMoney(actual)}</b>
+        <span className="text-slate-500"> / {formatMoney(goal.amount)}</span>
+      </p>
 
       <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100">
         <div className="h-2 rounded-full transition-all duration-500"
           style={{ width: `${Math.min(100, pct)}%`, backgroundColor: color }} />
       </div>
 
-      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
-        {note}
-        <span className="tabular-nums text-slate-500">{Math.round(pct)}%</span>
-      </div>
+      <div className="mt-1.5 text-xs">{note}</div>
 
       {fastPace && (
         <p className="mt-1.5 flex items-center gap-1.5 text-xs text-amber-600">
