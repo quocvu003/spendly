@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { Minus, Plus, X } from 'lucide-react'
 import { supabase, type RoomMember, type Transaction } from '@/lib/supabase'
 import { getContrastColors } from '@/lib/theme'
+import { canAutoFocus } from '@/lib/device'
 
 type Props = {
   roomId: string
@@ -30,6 +31,8 @@ export default function RoomTransactionModal({
   roomId, themeColor, members, userNames, currentUserId, transaction, onClose, onSaved,
 }: Props) {
   const isEdit = !!transaction
+  // Chỉ tự focus ô Mô tả trên máy tính; trên điện thoại sẽ bật bàn phím và làm lệch trang (xem lib/device)
+  const [autoFocusFirst] = useState(canAutoFocus)
   const allIds = members.map(m => m.user_id)
   const othersIds = allIds.filter(id => id !== currentUserId)
 
@@ -251,7 +254,7 @@ export default function RoomTransactionModal({
                       <input type="text" data-desc={r.key} value={r.description}
                         onChange={e => updateRow(r.key, { description: e.target.value })}
                         placeholder={i === 0 ? 'vd: Tiền điện' : 'Mô tả'}
-                        autoFocus={i === 0 && !isEdit}
+                        autoFocus={i === 0 && !isEdit && autoFocusFirst}
                         className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 ${border}`} />
                       <div className="relative">
                         <input type="text" inputMode="numeric" value={r.amount}
