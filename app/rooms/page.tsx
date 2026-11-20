@@ -12,8 +12,7 @@ import {
 } from '@/lib/themeStore'
 import { Plus, Home, BookOpen, X, Pencil, Menu, ArrowDown } from 'lucide-react'
 import { getContrastColors } from '@/lib/theme'
-import NightFlowerField from '@/components/NightFlowerField'
-import { Wordmark, GlowCard, IconTile, ArrowCircle, DarkModal, darkInput } from '@/components/NightUI'
+import { Wordmark, Panel, IconTile, ArrowCircle, Modal, lightInput, themePageStyle } from '@/components/LightUI'
 import ProfileSettingsModal from '@/components/ProfileSettingsModal'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -195,11 +194,8 @@ function RoomsList() {
   const scrollToList = () => listRef.current?.scrollIntoView({ behavior: 'smooth' })
 
   return (
-    // overflow-x-clip: quầng sáng của card tràn ra ngoài, không để nó tạo thanh cuộn ngang
-    <div className="min-h-screen bg-[#04050b] text-[#f5efe2] overflow-x-clip">
-
-      {/* Nền thung lũng hoa đêm: cố định sau toàn trang, cuộn trang thì camera bay tới */}
-      <NightFlowerField />
+    // Nền trắng, dải màu chủ đề (Cài đặt → màu giao diện) nhạt dần ở phía trên — giống Sổ cá nhân
+    <div className="min-h-screen overflow-x-clip text-slate-900" style={themePageStyle(dashboardTheme)}>
 
       {/* ── HERO ─────────────────────────────────────────────── */}
       <section className="relative z-10 flex min-h-[100svh] flex-col">
@@ -209,13 +205,13 @@ function RoomsList() {
           <div className="hidden items-center gap-6 md:flex">
             <button
               onClick={() => setShowSettings(true)}
-              className="text-[13px] font-semibold uppercase tracking-[0.16em] text-[#f5efe2]/80 transition-opacity hover:opacity-60"
+              className="text-[13px] font-semibold uppercase tracking-[0.16em] text-slate-700 transition-opacity hover:opacity-60"
             >
               Cài đặt
             </button>
             <button
               onClick={logout}
-              className="inline-flex h-11 items-center rounded-full bg-[#f5efe2] px-6 text-sm font-semibold text-[#151510] transition-transform hover:-translate-y-px"
+              className="inline-flex h-11 items-center rounded-full bg-slate-900 px-6 text-sm font-semibold text-white transition-transform hover:-translate-y-px"
             >
               Đăng xuất
             </button>
@@ -224,18 +220,16 @@ function RoomsList() {
           <button
             onClick={() => setMobileMenuOpen(true)}
             aria-label="Mở menu"
-            className="rounded-xl p-2 text-[#f5efe2] md:hidden"
+            className="rounded-xl p-2 text-slate-900 md:hidden"
           >
             <Menu size={24} />
           </button>
         </header>
 
         <div className="relative flex flex-1 flex-col items-center justify-center px-5 pb-28 text-center">
-          {/* Lớp tối mờ sau khối chữ để chữ luôn đọc được trên nền hoa */}
-          <div aria-hidden className="pointer-events-none absolute left-1/2 top-[45%] -z-10 h-[70%] w-[min(1100px,120%)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(3,4,10,0.82),rgba(3,4,10,0.55)_55%,transparent)]" />
           <motion.p
             variants={fadeUp(0)} initial="hidden" animate="visible"
-            className="mb-5 flex max-w-full items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#f5efe2]/70 sm:text-sm"
+            className="mb-5 flex max-w-full items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 sm:text-sm"
           >
             <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: dashboardTheme }} />
             {/* Tên dài: cắt bằng dấu … thay vì tràn ra ngoài màn hình */}
@@ -251,12 +245,12 @@ function RoomsList() {
           >
             Tiết kiệm hôm nay,
             <br />
-            <span className="text-[#f5efe2]/75">tích luỹ tương lai.</span>
+            <span className="text-slate-900/55">tích luỹ tương lai.</span>
           </motion.h1>
 
           <motion.p
             variants={fadeUp(0.2)} initial="hidden" animate="visible"
-            className="mt-8 max-w-md break-words text-base leading-relaxed text-[#f5efe2]/70 [overflow-wrap:anywhere] sm:text-lg"
+            className="mt-8 max-w-md break-words text-base leading-relaxed text-slate-600 [overflow-wrap:anywhere] sm:text-lg"
           >
             {loading
               ? 'Đang chuẩn bị không gian của bạn…'
@@ -267,15 +261,15 @@ function RoomsList() {
             variants={fadeUp(0.3)} initial="hidden" animate="visible"
             onClick={scrollToList}
             aria-label="Xem danh sách"
-            className="mt-9 grid h-14 w-14 place-items-center rounded-full border-[1.5px] border-[#f5efe2] text-[#f5efe2] transition-colors duration-300 hover:bg-[#f5efe2] hover:text-[#151510]"
+            className="mt-9 grid h-14 w-14 place-items-center rounded-full border-[1.5px] border-slate-900 text-slate-900 transition-colors duration-300 hover:bg-slate-900 hover:text-white"
           >
             <ArrowDown size={22} strokeWidth={1.6} />
           </motion.button>
         </div>
 
-        <div className="absolute bottom-8 left-5 right-5 flex items-center justify-center gap-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#f5efe2]/60 sm:left-auto sm:right-10 sm:justify-end">
+        <div className="absolute bottom-8 left-5 right-5 flex items-center justify-center gap-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 sm:left-auto sm:right-10 sm:justify-end">
           <span>Cuộn để khám phá</span>
-          <i className="h-6 w-px bg-[#f5efe2]/40" />
+          <i className="h-6 w-px bg-slate-300" />
           <span>{rooms.length.toString().padStart(2, '0')} phòng</span>
         </div>
       </section>
@@ -284,10 +278,10 @@ function RoomsList() {
       <section ref={listRef} className="relative z-10 mx-auto max-w-5xl scroll-mt-8 px-5 pb-28 pt-10 sm:px-8">
         <div className="mb-10 flex items-end justify-between gap-4">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#f5efe2]/50">Không gian của bạn</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Không gian của bạn</p>
             <h2 className="text-3xl font-extrabold tracking-[-0.03em] sm:text-5xl">Sổ &amp; phòng chi tiêu</h2>
           </div>
-          <p className="hidden pb-2 text-sm text-[#f5efe2]/50 sm:block">
+          <p className="hidden pb-2 text-sm text-slate-500 sm:block">
             {loading ? '…' : `${rooms.length} phòng`}
           </p>
         </div>
@@ -295,13 +289,13 @@ function RoomsList() {
         {/* grid-cols-1 + min-w-0 ở từng card: không để tên dài kéo giãn card rộng hơn màn hình */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {/* Sổ cá nhân: thẻ nổi bật, chiếm hết bề ngang */}
-          <GlowCard theme={personalTheme} className="md:col-span-2">
+          <Panel theme={personalTheme} className="group transition-transform duration-300 hover:-translate-y-1 md:col-span-2">
             {/* Cùng bố cục với thẻ phòng: biểu tượng ở trên; tên bên trái, nút mũi tên bên phải */}
             <Link href="/personal" className="relative z-10 flex min-h-[200px] flex-col justify-between gap-8 p-7 sm:p-9">
               <IconTile theme={personalTheme}><BookOpen size={22} /></IconTile>
               <div className="flex items-end justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#f5efe2]/50">Cá nhân</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Cá nhân</p>
                 <div className="mt-1 flex items-start gap-2">
                   {/* Tên dài: xuống dòng, tối đa 2 dòng rồi cắt bằng … */}
                   <h3 className="line-clamp-2 min-w-0 text-3xl font-extrabold tracking-[-0.03em] [overflow-wrap:anywhere] sm:text-4xl">{personalName}</h3>
@@ -311,30 +305,30 @@ function RoomsList() {
                       setEditPersonalNameValue(personalName); setShowEditPersonalName(true)
                     }}
                     aria-label="Đổi tên Sổ cá nhân"
-                    className="rounded-lg p-1.5 text-[#f5efe2]/40 transition-colors hover:bg-white/10 hover:text-[#f5efe2]"
+                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-900/5 hover:text-slate-700"
                   >
                     <Pencil size={16} />
                   </button>
                 </div>
-                <p className="mt-2 max-w-sm text-sm text-[#f5efe2]/60">Ghi chép thu chi của riêng bạn, theo nhãn và theo tháng.</p>
+                <p className="mt-2 max-w-sm text-sm text-slate-600">Ghi chép thu chi của riêng bạn, theo nhãn và theo tháng.</p>
               </div>
               {/* Điện thoại: nút nhỏ như thẻ phòng; màn hình lớn: nút lớn */}
               <span className="sm:hidden"><ArrowCircle small /></span>
               <span className="hidden sm:block"><ArrowCircle /></span>
               </div>
             </Link>
-          </GlowCard>
+          </Panel>
 
           {/* Các phòng */}
           {loading
             ? [0, 1].map(i => (
-                <div key={i} className="h-[190px] animate-pulse rounded-3xl border border-white/10 bg-white/[0.04]" />
+                <div key={i} className="h-[190px] animate-pulse rounded-3xl border border-slate-200 bg-white/70" />
               ))
             : rooms.map(room => {
                 const theme = roomThemes[room.id] || THEME_DEFAULTS.room
                 const isOwner = room.owner_id === currentUserId
                 return (
-                  <GlowCard key={room.id} theme={theme}>
+                  <Panel key={room.id} theme={theme} className="group transition-transform duration-300 hover:-translate-y-1">
                     <Link href={`/rooms/${room.id}`} className="relative z-10 flex min-h-[190px] flex-col justify-between p-7">
                       <div className="flex items-start justify-between">
                         <IconTile theme={theme}><Home size={20} /></IconTile>
@@ -342,7 +336,7 @@ function RoomsList() {
                           <button
                             onClick={e => openEditRoom(e, room)}
                             aria-label="Sửa tên phòng"
-                            className="rounded-lg p-1.5 text-[#f5efe2]/40 transition-colors hover:bg-white/10 hover:text-[#f5efe2]"
+                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-900/5 hover:text-slate-700"
                           >
                             <Pencil size={15} />
                           </button>
@@ -350,7 +344,7 @@ function RoomsList() {
                       </div>
                       <div className="mt-8 flex items-end justify-between gap-4">
                         <div className="min-w-0">
-                          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#f5efe2]/50">
+                          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                             {isOwner ? 'Chủ phòng' : 'Thành viên'}
                           </p>
                           <h3 className="line-clamp-2 text-2xl font-extrabold tracking-[-0.03em] [overflow-wrap:anywhere]">{room.name}</h3>
@@ -358,24 +352,24 @@ function RoomsList() {
                         <ArrowCircle small />
                       </div>
                     </Link>
-                  </GlowCard>
+                  </Panel>
                 )
               })}
 
           {/* Tạo phòng mới */}
           <div className={`flex min-h-[190px] flex-col rounded-3xl border border-dashed p-7 transition-colors ${
-            showCreate ? 'border-white/30 bg-[#0b0f1f]/85' : 'border-white/20 bg-[#0b0f1f]/75 hover:border-white/40'
+            showCreate ? 'border-slate-400 bg-white' : 'border-slate-300 bg-white/70 hover:border-slate-400'
           }`}>
             {showCreate ? (
               <div className="flex flex-1 flex-col">
-                <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-[#f5efe2]/50">Phòng mới</p>
+                <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Phòng mới</p>
                 <input
                   value={roomName}
                   onChange={e => setRoomName(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') createRoom(); if (e.key === 'Escape') setShowCreate(false) }}
                   placeholder="Ví dụ: Phòng 101"
                   autoFocus
-                  className={darkInput}
+                  className={lightInput}
                 />
                 <div className="mt-auto flex gap-2 pt-4">
                   <button
@@ -388,7 +382,7 @@ function RoomsList() {
                   </button>
                   <button
                     onClick={() => { setShowCreate(false); setRoomName('') }}
-                    className="rounded-full border border-white/20 px-5 py-2.5 text-sm font-semibold text-[#f5efe2]/80 hover:bg-white/10"
+                    className="rounded-full border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100"
                   >
                     Huỷ
                   </button>
@@ -396,12 +390,12 @@ function RoomsList() {
               </div>
             ) : (
               <button onClick={() => setShowCreate(true)} className="flex flex-1 flex-col items-start justify-between text-left">
-                <span className="grid h-12 w-12 place-items-center rounded-2xl border border-white/20 text-[#f5efe2]/80">
+                <span className="grid h-12 w-12 place-items-center rounded-2xl border border-slate-300 text-slate-600">
                   <Plus size={22} />
                 </span>
                 <span>
                   <span className="block text-2xl font-extrabold tracking-[-0.03em]">Tạo phòng mới</span>
-                  <span className="mt-1 block text-sm text-[#f5efe2]/55">
+                  <span className="mt-1 block text-sm text-slate-500">
                     {!loading && rooms.length === 0
                       ? 'Bạn chưa có phòng nào. Tạo phòng đầu tiên để chia sẻ chi tiêu.'
                       : 'Chia sẻ chi tiêu với bạn cùng phòng.'}
@@ -420,30 +414,30 @@ function RoomsList() {
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setMobileMenuOpen(false)}
-              className="fixed inset-0 z-40 bg-black/50"
+              className="fixed inset-0 z-40 bg-slate-900/40"
             />
             <motion.div
               initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
               transition={{ ease: [0.22, 1, 0.36, 1], duration: 0.45 }}
-              className="fixed right-0 top-0 z-50 flex h-dvh flex-col border-l border-white/10 bg-[#0a0d1a]"
+              className="fixed right-0 top-0 z-50 flex h-dvh flex-col border-l border-slate-200 bg-white"
               style={{ width: 'min(88vw, 360px)' }}
             >
               <div className="flex items-center justify-between px-6 py-5">
                 <Wordmark />
-                <button onClick={() => setMobileMenuOpen(false)} aria-label="Đóng menu" className="p-2 text-[#f5efe2]">
+                <button onClick={() => setMobileMenuOpen(false)} aria-label="Đóng menu" className="p-2 text-slate-900">
                   <X size={22} />
                 </button>
               </div>
-              <div className="mx-6 h-px bg-white/10" />
+              <div className="mx-6 h-px bg-slate-200" />
               <div className="flex-1" />
               <div className="flex flex-col gap-3 px-6 pb-8">
                 <button
                   onClick={() => { setMobileMenuOpen(false); setShowSettings(true) }}
-                  className="w-full rounded-full border border-white/20 py-3 text-sm font-semibold text-[#f5efe2]"
+                  className="w-full rounded-full border border-slate-200 py-3 text-sm font-semibold text-slate-700"
                 >
                   Cài đặt
                 </button>
-                <button onClick={logout} className="w-full rounded-full bg-[#f5efe2] py-3 text-sm font-semibold text-[#151510]">
+                <button onClick={logout} className="w-full rounded-full bg-slate-900 py-3 text-sm font-semibold text-white">
                   Đăng xuất
                 </button>
               </div>
@@ -463,12 +457,12 @@ function RoomsList() {
       )}
 
       {editingRoomId && (
-        <DarkModal title="Sửa tên phòng" onClose={() => setEditingRoomId(null)}>
+        <Modal title="Sửa tên phòng" onClose={() => setEditingRoomId(null)}>
           <input
             type="text" value={editRoomName} onChange={e => setEditRoomName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && saveRoomName()} autoFocus
             placeholder="Ví dụ: Phòng 101"
-            className={`mb-4 ${darkInput}`}
+            className={`mb-4 ${lightInput}`}
           />
           <button
             onClick={saveRoomName} disabled={savingRoom}
@@ -477,16 +471,16 @@ function RoomsList() {
           >
             {savingRoom ? 'Đang lưu…' : 'Lưu'}
           </button>
-        </DarkModal>
+        </Modal>
       )}
 
       {showEditPersonalName && (
-        <DarkModal title="Đổi tên Sổ cá nhân" onClose={() => setShowEditPersonalName(false)}>
+        <Modal title="Đổi tên Sổ cá nhân" onClose={() => setShowEditPersonalName(false)}>
           <input
             type="text" value={editPersonalNameValue} onChange={e => setEditPersonalNameValue(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && savePersonalName()} autoFocus
             placeholder="Ví dụ: Ví của tôi, Quỹ đen…"
-            className={`mb-4 ${darkInput}`}
+            className={`mb-4 ${lightInput}`}
           />
           <button
             onClick={savePersonalName}
@@ -495,7 +489,7 @@ function RoomsList() {
           >
             Lưu
           </button>
-        </DarkModal>
+        </Modal>
       )}
     </div>
   )
@@ -503,7 +497,7 @@ function RoomsList() {
 
 export default function RoomsPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#04050b]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
       <RoomsList />
     </Suspense>
   )
