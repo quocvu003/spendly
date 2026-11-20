@@ -1,10 +1,10 @@
 'use client'
 
-// Các thành phần giao diện tông sáng (nền trắng) dùng chung cho Sổ cá nhân (/personal):
+// Các thành phần giao diện tông sáng (nền trắng) dùng chung cho danh sách phòng (/rooms) và Sổ cá nhân (/personal):
 // logo, card tổng kết ánh màu chủ đề, khung nội dung, popup, thanh trên cùng, tiêu đề trang.
 
 import Link from 'next/link'
-import { X, ArrowLeft } from 'lucide-react'
+import { X, ArrowLeft, ArrowRight } from 'lucide-react'
 import { getContrastColors } from '@/lib/theme'
 
 /** Ô nhập liệu tông sáng */
@@ -175,5 +175,30 @@ export function SectionHeader({ title, right }: { title: string; right?: React.R
       <h2 className="text-xl font-extrabold tracking-[-0.03em] sm:text-2xl">{title}</h2>
       {right && <span className="shrink-0 text-sm tabular-nums text-slate-500">{right}</span>}
     </div>
+  )
+}
+
+/** Ô biểu tượng tô màu chủ đề, chữ/biểu tượng tự đổi đen/trắng theo độ sáng của màu */
+export function IconTile({ theme, children }: { theme: string; children: React.ReactNode }) {
+  return (
+    <span
+      className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl"
+      style={{ backgroundColor: theme, color: getContrastColors(theme).text, boxShadow: `0 8px 24px ${theme}55` }}
+    >
+      {children}
+    </span>
+  )
+}
+
+/** Nút mũi tên tròn; tô đậm khi rê chuột vào thẻ cha có class "group" */
+export function ArrowCircle({ small = false }: { small?: boolean }) {
+  return (
+    <span
+      className={`grid shrink-0 place-items-center rounded-full border-[1.5px] border-slate-900/60 text-slate-900 transition-colors duration-300 group-hover:border-slate-900 group-hover:bg-slate-900 group-hover:text-white ${
+        small ? 'h-11 w-11' : 'h-14 w-14'
+      }`}
+    >
+      <ArrowRight size={small ? 18 : 22} strokeWidth={1.6} />
+    </span>
   )
 }
